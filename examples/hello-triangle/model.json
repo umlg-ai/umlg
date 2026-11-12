@@ -1,0 +1,785 @@
+{
+  "umlgVersion": "0.1",
+  "id": "hello-triangle",
+  "name": "Hello Triangle",
+  "description": "Первый вертикальный срез UMLG: как три вершины попадают на экран. M-мир описывает замысел, R-мир — воплощение в OpenGL.",
+  "worlds": [
+    {
+      "id": "M",
+      "name": "Замысел",
+      "kind": "mental",
+      "description": "Типы, контракты и инварианты. Здесь живут классы и призраки."
+    },
+    {
+      "id": "R",
+      "name": "Воплощение",
+      "kind": "real",
+      "description": "Ресурсы, объекты, команды и стадии конвейера. Здесь живут экземпляры."
+    }
+  ],
+  "elements": [
+    {
+      "id": "m.app",
+      "world": "M",
+      "kind": "class",
+      "name": "Application",
+      "description": "Точка входа. Создаёт окно, контекст и запускает цикл.",
+      "tags": ["entry"],
+      "members": [
+        {
+          "id": "m.app.run",
+          "kind": "method",
+          "name": "run",
+          "visibility": "public",
+          "signature": "run() -> void",
+          "returns": "void",
+          "params": []
+        },
+        {
+          "id": "m.app.init",
+          "kind": "method",
+          "name": "init",
+          "visibility": "private",
+          "signature": "init() -> bool",
+          "returns": "bool",
+          "params": []
+        }
+      ]
+    },
+    {
+      "id": "m.window",
+      "world": "M",
+      "kind": "class",
+      "name": "Window",
+      "description": "Окно ОС и область вывода.",
+      "members": [
+        {
+          "id": "m.window.width",
+          "kind": "attribute",
+          "name": "width",
+          "visibility": "private",
+          "type": "int",
+          "isReadonly": false
+        },
+        {
+          "id": "m.window.height",
+          "kind": "attribute",
+          "name": "height",
+          "visibility": "private",
+          "type": "int",
+          "isReadonly": false
+        },
+        {
+          "id": "m.window.create",
+          "kind": "method",
+          "name": "create",
+          "visibility": "public",
+          "signature": "create(width: int, height: int) -> void",
+          "returns": "void",
+          "params": [
+            { "name": "width", "type": "int" },
+            { "name": "height", "type": "int" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m.context",
+      "world": "M",
+      "kind": "class",
+      "name": "GLContext",
+      "description": "Контекст OpenGL, привязанный к окну.",
+      "members": [
+        {
+          "id": "m.context.makeCurrent",
+          "kind": "method",
+          "name": "makeCurrent",
+          "visibility": "public",
+          "signature": "makeCurrent() -> void",
+          "returns": "void",
+          "params": []
+        }
+      ]
+    },
+    {
+      "id": "m.shader",
+      "world": "M",
+      "kind": "abstractClass",
+      "name": "Shader",
+      "description": "Призрак: нельзя создать напрямую. Общий контракт вершинного и фрагментного шейдеров.",
+      "tags": ["ghost"],
+      "members": [
+        {
+          "id": "m.shader.source",
+          "kind": "attribute",
+          "name": "source",
+          "visibility": "protected",
+          "type": "string",
+          "isReadonly": true
+        },
+        {
+          "id": "m.shader.compile",
+          "kind": "method",
+          "name": "compile",
+          "visibility": "public",
+          "signature": "compile() -> bool",
+          "returns": "bool",
+          "params": [],
+          "isAbstract": true
+        }
+      ]
+    },
+    {
+      "id": "m.vertexShader",
+      "world": "M",
+      "kind": "class",
+      "name": "VertexShader",
+      "description": "Конкретная реализация стадии вершин.",
+      "members": [
+        {
+          "id": "m.vertexShader.compile",
+          "kind": "method",
+          "name": "compile",
+          "visibility": "public",
+          "signature": "compile() -> bool",
+          "returns": "bool",
+          "params": []
+        }
+      ]
+    },
+    {
+      "id": "m.fragmentShader",
+      "world": "M",
+      "kind": "class",
+      "name": "FragmentShader",
+      "description": "Конкретная реализация стадии фрагментов.",
+      "members": [
+        {
+          "id": "m.fragmentShader.compile",
+          "kind": "method",
+          "name": "compile",
+          "visibility": "public",
+          "signature": "compile() -> bool",
+          "returns": "bool",
+          "params": []
+        }
+      ]
+    },
+    {
+      "id": "m.program",
+      "world": "M",
+      "kind": "class",
+      "name": "ShaderProgram",
+      "description": "Слинкованная пара шейдеров, готовая к использованию.",
+      "members": [
+        {
+          "id": "m.program.id",
+          "kind": "attribute",
+          "name": "id",
+          "visibility": "private",
+          "type": "uint",
+          "isReadonly": true
+        },
+        {
+          "id": "m.program.link",
+          "kind": "method",
+          "name": "link",
+          "visibility": "public",
+          "signature": "link() -> bool",
+          "returns": "bool",
+          "params": []
+        },
+        {
+          "id": "m.program.use",
+          "kind": "method",
+          "name": "use",
+          "visibility": "public",
+          "signature": "use() -> void",
+          "returns": "void",
+          "params": []
+        }
+      ]
+    },
+    {
+      "id": "m.vao",
+      "world": "M",
+      "kind": "class",
+      "name": "VertexArray",
+      "description": "Конфигурация атрибутов и привязок буферов.",
+      "members": [
+        {
+          "id": "m.vao.bind",
+          "kind": "method",
+          "name": "bind",
+          "visibility": "public",
+          "signature": "bind() -> void",
+          "returns": "void",
+          "params": []
+        },
+        {
+          "id": "m.vao.enableAttrib",
+          "kind": "method",
+          "name": "enableAttrib",
+          "visibility": "public",
+          "signature": "enableAttrib(index: int) -> void",
+          "returns": "void",
+          "params": [{ "name": "index", "type": "int" }]
+        }
+      ]
+    },
+    {
+      "id": "m.vbo",
+      "world": "M",
+      "kind": "class",
+      "name": "VertexBuffer",
+      "description": "Буфер вершинных данных.",
+      "members": [
+        {
+          "id": "m.vbo.upload",
+          "kind": "method",
+          "name": "upload",
+          "visibility": "public",
+          "signature": "upload(data: float[]) -> void",
+          "returns": "void",
+          "params": [{ "name": "data", "type": "float[]" }]
+        }
+      ]
+    },
+    {
+      "id": "m.ebo",
+      "world": "M",
+      "kind": "class",
+      "name": "IndexBuffer",
+      "description": "Буфер индексов. В Hello Triangle не используется, но показан как часть графа ресурсов.",
+      "members": [
+        {
+          "id": "m.ebo.upload",
+          "kind": "method",
+          "name": "upload",
+          "visibility": "public",
+          "signature": "upload(indices: uint[]) -> void",
+          "returns": "void",
+          "params": [{ "name": "indices", "type": "uint[]" }]
+        }
+      ]
+    },
+    {
+      "id": "m.pipeline",
+      "world": "M",
+      "kind": "component",
+      "name": "GraphicsPipeline",
+      "description": "Схема стадий обработки графики.",
+      "tags": ["pipeline"]
+    },
+    {
+      "id": "m.stage.vertex",
+      "world": "M",
+      "kind": "class",
+      "name": "VertexStage",
+      "description": "Вершинный шейдер как стадия.",
+      "tags": ["pipeline-stage"]
+    },
+    {
+      "id": "m.stage.primitive",
+      "world": "M",
+      "kind": "class",
+      "name": "PrimitiveAssembly",
+      "description": "Сборка примитивов из вершин.",
+      "tags": ["pipeline-stage"]
+    },
+    {
+      "id": "m.stage.raster",
+      "world": "M",
+      "kind": "class",
+      "name": "Rasterizer",
+      "description": "Растеризация примитивов в фрагменты.",
+      "tags": ["pipeline-stage"]
+    },
+    {
+      "id": "m.stage.fragment",
+      "world": "M",
+      "kind": "class",
+      "name": "FragmentStage",
+      "description": "Фрагментный шейдер как стадия.",
+      "tags": ["pipeline-stage"]
+    },
+    {
+      "id": "m.stage.output",
+      "world": "M",
+      "kind": "class",
+      "name": "OutputMerger",
+      "description": "Смешивание и запись в framebuffer.",
+      "tags": ["pipeline-stage"]
+    },
+    {
+      "id": "m.framebuffer",
+      "world": "M",
+      "kind": "class",
+      "name": "Framebuffer",
+      "description": "Цель вывода по умолчанию.",
+      "members": [
+        {
+          "id": "m.framebuffer.bind",
+          "kind": "method",
+          "name": "bind",
+          "visibility": "public",
+          "signature": "bind() -> void",
+          "returns": "void",
+          "params": []
+        }
+      ]
+    },
+    {
+      "id": "m.drawCall",
+      "world": "M",
+      "kind": "class",
+      "name": "DrawCall",
+      "description": "Команда отрисовки: программа + VAO + режим.",
+      "members": [
+        {
+          "id": "m.drawCall.execute",
+          "kind": "method",
+          "name": "execute",
+          "visibility": "public",
+          "signature": "execute() -> void",
+          "returns": "void",
+          "params": []
+        }
+      ]
+    },
+    {
+      "id": "m.state",
+      "world": "M",
+      "kind": "concept",
+      "name": "GLState",
+      "description": "Правила машины состояний: что должно быть привязано перед draw.",
+      "tags": ["concept", "invariants"]
+    },
+    {
+      "id": "r.obj.app",
+      "world": "R",
+      "kind": "object",
+      "name": "Application#1",
+      "description": "Запущенный экземпляр приложения.",
+      "provenance": { "materializedFrom": "m.app", "source": "demo" }
+    },
+    {
+      "id": "r.obj.window",
+      "world": "R",
+      "kind": "object",
+      "name": "Window#1",
+      "description": "Созданное окно 800×600.",
+      "provenance": { "materializedFrom": "m.window", "source": "demo" }
+    },
+    {
+      "id": "r.obj.context",
+      "world": "R",
+      "kind": "object",
+      "name": "GLContext#1",
+      "description": "Текущий контекст OpenGL 3.3 Core.",
+      "provenance": { "materializedFrom": "m.context", "source": "demo" }
+    },
+    {
+      "id": "r.res.program",
+      "world": "R",
+      "kind": "resource",
+      "name": "ShaderProgram#7",
+      "description": "Слинкованная программа. GL id = 7.",
+      "provenance": { "materializedFrom": "m.program", "source": "demo" }
+    },
+    {
+      "id": "r.res.vao",
+      "world": "R",
+      "kind": "resource",
+      "name": "VAO#1",
+      "description": "Хранит конфигурацию атрибутов и привязки буферов.",
+      "provenance": { "materializedFrom": "m.vao", "source": "demo" }
+    },
+    {
+      "id": "r.res.vbo",
+      "world": "R",
+      "kind": "resource",
+      "name": "VBO#3",
+      "description": "9 float: три вершины по три координаты.",
+      "provenance": { "materializedFrom": "m.vbo", "source": "demo" }
+    },
+    {
+      "id": "r.res.ebo",
+      "world": "R",
+      "kind": "resource",
+      "name": "EBO#4",
+      "description": "Пустой индексный буфер. Присутствует, но не используется в draw.",
+      "provenance": { "materializedFrom": "m.ebo", "source": "demo" }
+    },
+    {
+      "id": "r.res.framebuffer",
+      "world": "R",
+      "kind": "resource",
+      "name": "DefaultFramebuffer#0",
+      "description": "Цель вывода по умолчанию (окно).",
+      "provenance": { "materializedFrom": "m.framebuffer", "source": "demo" }
+    },
+    {
+      "id": "r.stage.vertex",
+      "world": "R",
+      "kind": "stage",
+      "name": "VertexStage",
+      "description": "Исполняется на GPU для каждой вершины.",
+      "provenance": { "materializedFrom": "m.stage.vertex", "source": "demo" }
+    },
+    {
+      "id": "r.stage.primitive",
+      "world": "R",
+      "kind": "stage",
+      "name": "PrimitiveAssembly",
+      "description": "Собирает три вершины в треугольник.",
+      "provenance": { "materializedFrom": "m.stage.primitive", "source": "demo" }
+    },
+    {
+      "id": "r.stage.raster",
+      "world": "R",
+      "kind": "stage",
+      "name": "Rasterizer",
+      "description": "Превращает треугольник во фрагменты.",
+      "provenance": { "materializedFrom": "m.stage.raster", "source": "demo" }
+    },
+    {
+      "id": "r.stage.fragment",
+      "world": "R",
+      "kind": "stage",
+      "name": "FragmentStage",
+      "description": "Считает цвет для каждого фрагмента.",
+      "provenance": { "materializedFrom": "m.stage.fragment", "source": "demo" }
+    },
+    {
+      "id": "r.stage.output",
+      "world": "R",
+      "kind": "stage",
+      "name": "OutputMerger",
+      "description": "Записывает цвет в framebuffer.",
+      "provenance": { "materializedFrom": "m.stage.output", "source": "demo" }
+    },
+    {
+      "id": "r.cmd.draw",
+      "world": "R",
+      "kind": "command",
+      "name": "glDrawArrays#1",
+      "description": "Один вызов glDrawArrays(GL_TRIANGLES, 0, 3).",
+      "provenance": { "materializedFrom": "m.drawCall", "source": "demo" }
+    },
+    {
+      "id": "r.actor.cpu",
+      "world": "R",
+      "kind": "actor",
+      "name": "CPU",
+      "description": "Поток приложения: настраивает состояние и отправляет draw call.",
+      "tags": ["actor"]
+    },
+    {
+      "id": "r.actor.gpu",
+      "world": "R",
+      "kind": "actor",
+      "name": "GPU",
+      "description": "Исполняет стадии конвейера.",
+      "tags": ["actor"]
+    }
+  ],
+  "relations": [
+    {
+      "id": "m.rel.app.window",
+      "world": "M",
+      "kind": "composition",
+      "from": "m.app",
+      "to": "m.window",
+      "label": "owns",
+      "fromMultiplicity": "1",
+      "toMultiplicity": "1"
+    },
+    {
+      "id": "m.rel.window.context",
+      "world": "M",
+      "kind": "composition",
+      "from": "m.window",
+      "to": "m.context",
+      "label": "has",
+      "fromMultiplicity": "1",
+      "toMultiplicity": "1"
+    },
+    {
+      "id": "m.rel.app.pipeline",
+      "world": "M",
+      "kind": "composition",
+      "from": "m.app",
+      "to": "m.pipeline",
+      "label": "owns",
+      "fromMultiplicity": "1",
+      "toMultiplicity": "1"
+    },
+    {
+      "id": "m.rel.program.vertex",
+      "world": "M",
+      "kind": "composition",
+      "from": "m.program",
+      "to": "m.vertexShader",
+      "label": "contains",
+      "fromMultiplicity": "1",
+      "toMultiplicity": "1"
+    },
+    {
+      "id": "m.rel.program.fragment",
+      "world": "M",
+      "kind": "composition",
+      "from": "m.program",
+      "to": "m.fragmentShader",
+      "label": "contains",
+      "fromMultiplicity": "1",
+      "toMultiplicity": "1"
+    },
+    {
+      "id": "m.rel.vertex.extends",
+      "world": "M",
+      "kind": "inheritance",
+      "from": "m.vertexShader",
+      "to": "m.shader",
+      "label": "extends"
+    },
+    {
+      "id": "m.rel.fragment.extends",
+      "world": "M",
+      "kind": "inheritance",
+      "from": "m.fragmentShader",
+      "to": "m.shader",
+      "label": "extends"
+    },
+    {
+      "id": "m.rel.vao.vbo",
+      "world": "M",
+      "kind": "aggregation",
+      "from": "m.vao",
+      "to": "m.vbo",
+      "label": "binds",
+      "fromMultiplicity": "1",
+      "toMultiplicity": "1"
+    },
+    {
+      "id": "m.rel.vao.ebo",
+      "world": "M",
+      "kind": "aggregation",
+      "from": "m.vao",
+      "to": "m.ebo",
+      "label": "binds",
+      "fromMultiplicity": "1",
+      "toMultiplicity": "0..1"
+    },
+    {
+      "id": "m.rel.pipeline.vertex",
+      "world": "M",
+      "kind": "composition",
+      "from": "m.pipeline",
+      "to": "m.stage.vertex",
+      "label": "stage",
+      "fromMultiplicity": "1",
+      "toMultiplicity": "1"
+    },
+    {
+      "id": "m.rel.pipeline.primitive",
+      "world": "M",
+      "kind": "composition",
+      "from": "m.pipeline",
+      "to": "m.stage.primitive",
+      "label": "stage",
+      "fromMultiplicity": "1",
+      "toMultiplicity": "1"
+    },
+    {
+      "id": "m.rel.pipeline.raster",
+      "world": "M",
+      "kind": "composition",
+      "from": "m.pipeline",
+      "to": "m.stage.raster",
+      "label": "stage",
+      "fromMultiplicity": "1",
+      "toMultiplicity": "1"
+    },
+    {
+      "id": "m.rel.pipeline.fragment",
+      "world": "M",
+      "kind": "composition",
+      "from": "m.pipeline",
+      "to": "m.stage.fragment",
+      "label": "stage",
+      "fromMultiplicity": "1",
+      "toMultiplicity": "1"
+    },
+    {
+      "id": "m.rel.pipeline.output",
+      "world": "M",
+      "kind": "composition",
+      "from": "m.pipeline",
+      "to": "m.stage.output",
+      "label": "stage",
+      "fromMultiplicity": "1",
+      "toMultiplicity": "1"
+    },
+    {
+      "id": "m.rel.draw.program",
+      "world": "M",
+      "kind": "dependency",
+      "from": "m.drawCall",
+      "to": "m.program",
+      "label": "uses"
+    },
+    {
+      "id": "m.rel.draw.vao",
+      "world": "M",
+      "kind": "dependency",
+      "from": "m.drawCall",
+      "to": "m.vao",
+      "label": "uses"
+    },
+    {
+      "id": "m.rel.draw.framebuffer",
+      "world": "M",
+      "kind": "dependency",
+      "from": "m.drawCall",
+      "to": "m.framebuffer",
+      "label": "writes to"
+    },
+    {
+      "id": "m.rel.state.draw",
+      "world": "M",
+      "kind": "dependency",
+      "from": "m.drawCall",
+      "to": "m.state",
+      "label": "must satisfy"
+    },
+    {
+      "id": "r.rel.cpu.draw",
+      "world": "R",
+      "kind": "call",
+      "from": "r.actor.cpu",
+      "to": "r.cmd.draw",
+      "label": "issues"
+    },
+    {
+      "id": "r.rel.draw.vertex",
+      "world": "R",
+      "kind": "flow",
+      "from": "r.cmd.draw",
+      "to": "r.stage.vertex",
+      "label": "vertices"
+    },
+    {
+      "id": "r.rel.vertex.primitive",
+      "world": "R",
+      "kind": "flow",
+      "from": "r.stage.vertex",
+      "to": "r.stage.primitive",
+      "label": "positions"
+    },
+    {
+      "id": "r.rel.primitive.raster",
+      "world": "R",
+      "kind": "flow",
+      "from": "r.stage.primitive",
+      "to": "r.stage.raster",
+      "label": "triangles"
+    },
+    {
+      "id": "r.rel.raster.fragment",
+      "world": "R",
+      "kind": "flow",
+      "from": "r.stage.raster",
+      "to": "r.stage.fragment",
+      "label": "fragments"
+    },
+    {
+      "id": "r.rel.fragment.output",
+      "world": "R",
+      "kind": "flow",
+      "from": "r.stage.fragment",
+      "to": "r.stage.output",
+      "label": "colors"
+    },
+    {
+      "id": "r.rel.output.framebuffer",
+      "world": "R",
+      "kind": "flow",
+      "from": "r.stage.output",
+      "to": "r.res.framebuffer",
+      "label": "pixels"
+    },
+    {
+      "id": "r.rel.vao.vbo",
+      "world": "R",
+      "kind": "binding",
+      "from": "r.res.vao",
+      "to": "r.res.vbo",
+      "label": "attrib 0"
+    },
+    {
+      "id": "r.rel.vao.ebo",
+      "world": "R",
+      "kind": "binding",
+      "from": "r.res.vao",
+      "to": "r.res.ebo",
+      "label": "indices"
+    },
+    {
+      "id": "r.rel.vao.vertex",
+      "world": "R",
+      "kind": "binding",
+      "from": "r.res.vao",
+      "to": "r.stage.vertex",
+      "label": "input layout"
+    },
+    {
+      "id": "r.rel.program.vertex",
+      "world": "R",
+      "kind": "binding",
+      "from": "r.res.program",
+      "to": "r.stage.vertex",
+      "label": "VS"
+    },
+    {
+      "id": "r.rel.program.fragment",
+      "world": "R",
+      "kind": "binding",
+      "from": "r.res.program",
+      "to": "r.stage.fragment",
+      "label": "FS"
+    },
+    {
+      "id": "r.rel.gpu.vertex",
+      "world": "R",
+      "kind": "call",
+      "from": "r.actor.gpu",
+      "to": "r.stage.vertex",
+      "label": "executes"
+    },
+    {
+      "id": "r.rel.gpu.fragment",
+      "world": "R",
+      "kind": "call",
+      "from": "r.actor.gpu",
+      "to": "r.stage.fragment",
+      "label": "executes"
+    }
+  ],
+  "links": [
+    { "id": "link.app", "kind": "materializes", "from": "m.app", "to": "r.obj.app" },
+    { "id": "link.window", "kind": "materializes", "from": "m.window", "to": "r.obj.window" },
+    { "id": "link.context", "kind": "materializes", "from": "m.context", "to": "r.obj.context" },
+    { "id": "link.program", "kind": "materializes", "from": "m.program", "to": "r.res.program" },
+    { "id": "link.vao", "kind": "materializes", "from": "m.vao", "to": "r.res.vao" },
+    { "id": "link.vbo", "kind": "materializes", "from": "m.vbo", "to": "r.res.vbo" },
+    { "id": "link.ebo", "kind": "materializes", "from": "m.ebo", "to": "r.res.ebo" },
+    { "id": "link.framebuffer", "kind": "materializes", "from": "m.framebuffer", "to": "r.res.framebuffer" },
+    { "id": "link.stage.vertex", "kind": "materializes", "from": "m.stage.vertex", "to": "r.stage.vertex" },
+    { "id": "link.stage.primitive", "kind": "materializes", "from": "m.stage.primitive", "to": "r.stage.primitive" },
+    { "id": "link.stage.raster", "kind": "materializes", "from": "m.stage.raster", "to": "r.stage.raster" },
+    { "id": "link.stage.fragment", "kind": "materializes", "from": "m.stage.fragment", "to": "r.stage.fragment" },
+    { "id": "link.stage.output", "kind": "materializes", "from": "m.stage.output", "to": "r.stage.output" },
+    { "id": "link.drawCall", "kind": "materializes", "from": "m.drawCall", "to": "r.cmd.draw" }
+  ]
+}

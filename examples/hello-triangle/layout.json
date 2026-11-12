@@ -1,0 +1,56 @@
+{
+  "layoutVersion": "0.1",
+  "modelId": "hello-triangle",
+  "notes": "M- и R-раскладки намеренно зеркальны: одна и та же точка в пространстве сохраняет пространственную память при фазовом переходе.",
+  "worlds": {
+    "M": {
+      "ambient": "mental",
+      "nodes": [
+        { "ref": "m.app", "position": [0, 0, 0], "pinned": true },
+        { "ref": "m.window", "position": [-3, 0, -7] },
+        { "ref": "m.context", "position": [3, 0, -7] },
+        { "ref": "m.program", "position": [0, 0, -14] },
+        { "ref": "m.shader", "position": [0, 5, -14] },
+        { "ref": "m.vertexShader", "position": [-4, 3, -20] },
+        { "ref": "m.fragmentShader", "position": [4, 3, -20] },
+        { "ref": "m.vao", "position": [0, 0, -22] },
+        { "ref": "m.vbo", "position": [-3, 0, -28] },
+        { "ref": "m.ebo", "position": [3, 0, -28] },
+        { "ref": "m.framebuffer", "position": [0, 0, -34] },
+        { "ref": "m.pipeline", "position": [0, 0, -40] },
+        { "ref": "m.drawCall", "position": [0, 3, -40] },
+        { "ref": "m.state", "position": [0, 6, -40] },
+        { "ref": "m.stage.vertex", "position": [-10, 0, -46] },
+        { "ref": "m.stage.primitive", "position": [-5, 0, -46] },
+        { "ref": "m.stage.raster", "position": [0, 0, -46] },
+        { "ref": "m.stage.fragment", "position": [5, 0, -46] },
+        { "ref": "m.stage.output", "position": [10, 0, -46] }
+      ]
+    },
+    "R": {
+      "ambient": "real",
+      "nodes": [
+        { "ref": "r.obj.app", "position": [0, 0, 0], "pinned": true },
+        { "ref": "r.obj.window", "position": [-3, 0, -7] },
+        { "ref": "r.obj.context", "position": [3, 0, -7] },
+        { "ref": "r.res.program", "position": [0, 0, -14] },
+        { "ref": "r.res.vao", "position": [0, 0, -22] },
+        { "ref": "r.res.vbo", "position": [-3, 0, -28] },
+        { "ref": "r.res.ebo", "position": [3, 0, -28] },
+        { "ref": "r.res.framebuffer", "position": [0, 0, -34] },
+        { "ref": "r.cmd.draw", "position": [0, 3, -40] },
+        { "ref": "r.actor.cpu", "position": [0, 6, 6] },
+        { "ref": "r.actor.gpu", "position": [0, 3, -52] },
+        { "ref": "r.stage.vertex", "position": [-10, 0, -46] },
+        { "ref": "r.stage.primitive", "position": [-5, 0, -46] },
+        { "ref": "r.stage.raster", "position": [0, 0, -46] },
+        { "ref": "r.stage.fragment", "position": [5, 0, -46] },
+        { "ref": "r.stage.output", "position": [10, 0, -46] }
+      ]
+    }
+  },
+  "camera": {
+    "M": { "position": [0, 10, 20], "target": [0, 2, -24], "fov": 55 },
+    "R": { "position": [0, 10, 20], "target": [0, 2, -24], "fov": 55 }
+  }
+}

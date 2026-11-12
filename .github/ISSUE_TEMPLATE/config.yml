@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question / idea
+    url: https://github.com/OWNER/umlg/discussions
+    about: Ask a question or discuss an idea before opening an issue.
+  - name: Read the manifest
+    url: https://github.com/OWNER/umlg/blob/main/spec/00-manifest.md
+    about: Goals, non-goals and principles of UMLG v0.1.

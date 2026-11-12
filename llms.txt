@@ -1,0 +1,52 @@
+# UMLG
+
+> UMLG — экспериментальный 3D-язык архитектуры с двумя онтологиями: M (Замысел) и R (Воплощение). Переход между мирами — фазовый сдвиг вокруг наблюдателя, а не портал. Статус: v0.1 draft, один вертикальный срез `Hello Triangle`.
+
+## Start here
+
+- [AGENTS.md](AGENTS.md): обязательные инструкции для ИИ-агентов и контрибьюторов.
+- [docs/ai-handbook.md](docs/ai-handbook.md): онтология, карта репозитория, типовые ошибки, чек-листы.
+- [spec/00-manifest.md](spec/00-manifest.md): цели, non-goals, принципы, политика сложности.
+- [spec/01-worlds.md](spec/01-worlds.md): миры M/R, связи, drift, инварианты.
+
+## Spec
+
+- [spec/02-viewpoints.md](spec/02-viewpoints.md): viewpoint-контракты.
+- [spec/03-visual-grammar.md](spec/03-visual-grammar.md): цех, призрак, NPC, LOD.
+- [spec/04-transitions.md](spec/04-transitions.md): фазы, ввод, эффекты, доступность.
+- [spec/05-serialization.md](spec/05-serialization.md): `model.json`, `layout.json`, ID.
+
+## Schema
+
+- [schema/umlg.schema.json](schema/umlg.schema.json): JSON Schema 2020-12 для модели.
+- [schema/layout.schema.json](schema/layout.schema.json): JSON Schema 2020-12 для раскладки.
+
+## Example
+
+- [examples/hello-triangle/model.json](examples/hello-triangle/model.json): семантика M/R.
+- [examples/hello-triangle/layout.json](examples/hello-triangle/layout.json): координаты и камеры.
+- [examples/hello-triangle/self-check.md](examples/hello-triangle/self-check.md): 7 вопросов с ответами.
+- [course/hello-triangle.md](course/hello-triangle.md): Topic Card.
+- [course/README.md](course/README.md): матрица тем LearnOpenGL.
+
+## Process
+
+- [CONTRIBUTING.md](CONTRIBUTING.md): как предложить изменение.
+- [docs/rfcs/0000-template.md](docs/rfcs/0000-template.md): шаблон RFC для расширения ядра.
+- [docs/decisions/](docs/decisions/): принятые решения.
+- [CHANGELOG.md](CHANGELOG.md): история версий.
+- [docs/video/hello-triangle-demo.md](docs/video/hello-triangle-demo.md): план видео-демо.
+
+## Commands
+
+```bash
+make validate
+```
+
+## Constraints
+
+- Одно присутствие, один мир; второй мир не рендерится.
+- Семантика отделена от презентации.
+- Абстрактный класс не материализуется напрямую.
+- Новая сущность ядра — только после 3–5 тем курса и RFC.
+- Контент LearnOpenGL не копируется.

@@ -1,0 +1,43 @@
+name: New course topic
+description: Propose a Topic Card (e.g. Hello Window, Shaders, Textures).
+title: "[topic] "
+labels: ["course"]
+body:
+  - type: input
+    id: topic
+    attributes:
+      label: Topic
+      placeholder: "Hello Window"
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Source / inspiration
+      description: Link only. Do not paste third-party text or images.
+      placeholder: "https://learnopengl.com/Getting-started/Hello-Window"
+  - type: textarea
+    id: question
+    attributes:
+      label: Main question
+      description: One sentence the topic must answer.
+    validations:
+      required: true
+  - type: textarea
+    id: viewpoints
+    attributes:
+      label: Viewpoints
+      description: Which existing viewpoints cover it? If a new one is needed, stop and open an RFC first.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: The topic uses existing core entities.
+          required: true
+        - label: I will add M-model, R-model and self-check.
+          required: true
+        - label: I will not copy third-party content.
+          required: true

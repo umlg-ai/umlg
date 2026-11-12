@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://umlg.dev/schema/0.1/layout.schema.json",
+  "title": "UMLG layout",
+  "description": "Presentation-only data: positions, camera and ambient per world. Contains no semantics.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["layoutVersion", "modelId", "worlds"],
+  "properties": {
+    "layoutVersion": {
+      "type": "string",
+      "pattern": "^0\\.[0-9]+$"
+    },
+    "modelId": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "worlds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["M", "R"],
+      "properties": {
+        "M": { "$ref": "#/$defs/worldLayout" },
+        "R": { "$ref": "#/$defs/worldLayout" }
+      }
+    },
+    "camera": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "M": { "$ref": "#/$defs/camera" },
+        "R": { "$ref": "#/$defs/camera" }
+      }
+    },
+    "notes": { "type": "string" }
+  },
+  "$defs": {
+    "vec3": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "type": "number" }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "position"],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*$"
+        },
+        "position": { "$ref": "#/$defs/vec3" },
+        "rotation": { "$ref": "#/$defs/vec3" },
+        "scale": { "$ref": "#/$defs/vec3" },
+        "collapsed": { "type": "boolean" },
+        "pinned": { "type": "boolean" },
+        "label": { "type": "string" }
+      }
+    },
+    "worldLayout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodes"],
+      "properties": {
+        "ambient": {
+          "type": "string",
+          "enum": ["mental", "real", "symbolic", "physical"]
+        },
+        "nodes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/node" }
+        }
+      }
+    },
+    "camera": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["position", "target"],
+      "properties": {
+        "position": { "$ref": "#/$defs/vec3" },
+        "target": { "$ref": "#/$defs/vec3" },
+        "up": { "$ref": "#/$defs/vec3" },
+        "fov": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 180 },
+        "orthographic": { "type": "boolean" }
+      }
+    }
+  }
+}

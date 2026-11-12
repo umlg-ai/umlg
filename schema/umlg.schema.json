@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://umlg.dev/schema/0.1/umlg.schema.json",
+  "title": "UMLG model",
+  "description": "Language-agnostic architecture model with separate mental (M) and real (R) worlds.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["umlgVersion", "id", "name", "worlds", "elements"],
+  "properties": {
+    "umlgVersion": {
+      "type": "string",
+      "pattern": "^0\\.[0-9]+$"
+    },
+    "id": { "$ref": "#/$defs/slug" },
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "worlds": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "$ref": "#/$defs/world" }
+    },
+    "elements": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/element" }
+    },
+    "relations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/relation" }
+    },
+    "links": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/link" }
+    }
+  },
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*$"
+    },
+    "worldId": {
+      "type": "string",
+      "enum": ["M", "R"]
+    },
+    "world": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "kind"],
+      "properties": {
+        "id": { "$ref": "#/$defs/worldId" },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "enum": ["mental", "real", "symbolic", "physical"] },
+        "description": { "type": "string" }
+      }
+    },
+    "elementKind": {
+      "type": "string",
+      "enum": [
+        "class",
+        "abstractClass",
+        "interface",
+        "component",
+        "concept",
+        "object",
+        "resource",
+        "process",
+        "stage",
+        "command",
+        "actor"
+      ]
+    },
+    "mentalKind": {
+      "type": "string",
+      "enum": ["class", "abstractClass", "interface", "component", "concept"]
+    },
+    "realKind": {
+      "type": "string",
+      "enum": ["object", "resource", "process", "stage", "command", "actor"]
+    },
+    "visibility": {
+      "type": "string",
+      "enum": ["public", "protected", "private", "package"]
+    },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "name"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": {
+          "type": "string",
+          "enum": ["attribute", "method", "property", "event", "constructor", "constant"]
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "visibility": { "$ref": "#/$defs/visibility" },
+        "type": { "type": "string" },
+        "signature": { "type": "string" },
+        "returns": { "type": "string" },
+        "params": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "type"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "type": { "type": "string", "minLength": 1 },
+              "optional": { "type": "boolean" },
+              "default": { "type": "string" }
+            }
+          }
+        },
+        "isAbstract": { "type": "boolean" },
+        "isStatic": { "type": "boolean" },
+        "isReadonly": { "type": "boolean" },
+        "description": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "method" } }, "required": ["kind"] },
+          "then": {
+            "properties": {
+              "returns": { "type": "string" },
+              "params": { "type": "array" }
+            }
+          }
+        }
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["materializedFrom"],
+      "properties": {
+        "materializedFrom": { "$ref": "#/$defs/id" },
+        "at": { "type": "string" },
+        "source": { "type": "string" }
+      }
+    },
+    "element": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "world", "kind", "name"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "world": { "$ref": "#/$defs/worldId" },
+        "kind": { "$ref": "#/$defs/elementKind" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "members": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/member" }
+        },
+        "state": { "type": "string" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "world": { "const": "M" } }, "required": ["world"] },
+          "then": { "properties": { "kind": { "$ref": "#/$defs/mentalKind" } } }
+        },
+        {
+          "if": { "properties": { "world": { "const": "R" } }, "required": ["world"] },
+          "then": { "properties": { "kind": { "$ref": "#/$defs/realKind" } } }
+        }
+      ]
+    },
+    "relationKind": {
+      "type": "string",
+      "enum": [
+        "association",
+        "inheritance",
+        "realization",
+        "composition",
+        "aggregation",
+        "dependency",
+        "flow",
+        "call",
+        "signal",
+        "binding"
+      ]
+    },
+    "multiplicity": {
+      "type": "string",
+      "pattern": "^(\\*|[0-9]+)(\\.\\.(\\*|[0-9]+))?$"
+    },
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "world", "kind", "from", "to"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "world": { "$ref": "#/$defs/worldId" },
+        "kind": { "$ref": "#/$defs/relationKind" },
+        "from": { "$ref": "#/$defs/id" },
+        "to": { "$ref": "#/$defs/id" },
+        "label": { "type": "string" },
+        "fromMultiplicity": { "$ref": "#/$defs/multiplicity" },
+        "toMultiplicity": { "$ref": "#/$defs/multiplicity" },
+        "description": { "type": "string" }
+      }
+    },
+    "linkKind": {
+      "type": "string",
+      "enum": ["materializes", "implements", "deploys", "observes", "drift"]
+    },
+    "link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "from", "to"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "$ref": "#/$defs/linkKind" },
+        "from": { "$ref": "#/$defs/id" },
+        "to": { "$ref": "#/$defs/id" },
+        "label": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    }
+  }
+}

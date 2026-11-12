@@ -1,0 +1,48 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: JSON syntax
+        run: |
+          python3 -m json.tool examples/hello-triangle/model.json > /dev/null
+          python3 -m json.tool examples/hello-triangle/layout.json > /dev/null
+          python3 -m json.tool schema/umlg.schema.json > /dev/null
+          python3 -m json.tool schema/layout.schema.json > /dev/null
+
+      - name: JSON Schema (model)
+        run: |
+          npx --yes ajv-cli@5 validate --spec=draft2020 \
+            -s schema/umlg.schema.json \
+            -d "examples/**/model.json"
+
+      - name: JSON Schema (layout)
+        run: |
+          npx --yes ajv-cli@5 validate --spec=draft2020 \
+            -s schema/layout.schema.json \
+            -d "examples/**/layout.json"
+
+      - name: Semantic checks
+        run: |
+          python3 tools/validate.py \
+            examples/hello-triangle/model.json \
+            examples/hello-triangle/layout.json
+
+      - name: Links in Markdown
+        run: python3 tools/check_links.py

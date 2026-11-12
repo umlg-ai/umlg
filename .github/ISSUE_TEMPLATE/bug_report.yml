@@ -1,0 +1,54 @@
+name: Bug report
+description: Something is wrong in the model, schema, validator or docs.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: run `make validate` and check `AGENTS.md`.
+        Do not paste secrets or personal data.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Actual behaviour, error message, file and line.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: Commands, file paths, minimal model if possible.
+      placeholder: |
+        make validate
+        python3 tools/validate.py examples/hello-triangle/model.json examples/hello-triangle/layout.json
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - model / schema
+        - validator / CI
+        - spec / ontology
+        - visual grammar
+        - transitions
+        - course / example
+        - docs / AI instructions
+        - viewer
+        - other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: UMLG version
+      placeholder: "0.1"
