@@ -1,0 +1,35 @@
+{
+  "umlgVersion": "0.1",
+  "id": "drift-orphan",
+  "name": "Объект без класса",
+  "worlds": [
+    { "id": "M", "name": "Замысел", "kind": "mental" },
+    { "id": "R", "name": "Воплощение", "kind": "real" }
+  ],
+  "elements": [
+    {
+      "id": "m.component.queue",
+      "world": "M",
+      "kind": "component",
+      "name": "JobQueue",
+      "description": "В проекте очереди больше нет класса LegacyWorker."
+    },
+    {
+      "id": "r.obj.legacy-worker-1",
+      "world": "R",
+      "kind": "object",
+      "name": "legacy-worker-1",
+      "state": "active",
+      "description": "Экземпляр из прежнего развёртывания всё ещё обрабатывает задания."
+    }
+  ],
+  "links": [
+    {
+      "id": "link.drift.legacy-worker-1",
+      "kind": "drift",
+      "from": "m.component.queue",
+      "to": "r.obj.legacy-worker-1",
+      "label": "drift: class missing"
+    }
+  ]
+}

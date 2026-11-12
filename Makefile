@@ -26,6 +26,7 @@ schema:
 
 semantics:
 	@$(PYTHON) tools/validate.py examples/hello-triangle/model.json examples/hello-triangle/layout.json
+	@$(PYTHON) tools/validate.py examples/drift-orphan/model.json examples/drift-orphan/layout.json
 
 links:
 	@$(PYTHON) tools/check_links.py
