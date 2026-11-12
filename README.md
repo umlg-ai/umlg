@@ -1,5 +1,9 @@
 # UMLG
 
+[![validate](https://github.com/umlg-ai/umlg/actions/workflows/validate.yml/badge.svg)](https://github.com/umlg-ai/umlg/actions/workflows/validate.yml)
+[![release](https://img.shields.io/github/v/release/umlg-ai/umlg?include_prereleases&label=release)](https://github.com/umlg-ai/umlg/releases)
+[![license](https://img.shields.io/github/license/umlg-ai/umlg)](LICENSE)
+
 UMLG — экспериментальный визуальный язык архитектуры: **мир замысла (M)** и **мир воплощения (R)**, переход между ними как фазовый сдвиг, 3D как основная среда.
 
 Статус: **v0.1 draft**. Это не стандарт и не замена UML. Это проверяемый вертикальный срез на примере `Hello Triangle`.
