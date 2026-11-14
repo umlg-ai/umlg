@@ -60,11 +60,13 @@
 
 | `kind` | Из | В | Проверка |
 |---|---|---|---|
-| `materializes` | M-класс | R-сущность | источник не `abstractClass` |
-| `implements` | M-интерфейс | M-класс | обе стороны в M |
-| `deploys` | M-компонент | R-процесс | M → R |
+| `materializes` | M: конкретный `class` | R: `object`/`resource`/`process`/`stage`/`command` | источник только `class`; ровно один или `drift` |
+| `implements` | M: `class` | M: `interface` | внутри M, класс → интерфейс |
+| `deploys` | M: `component` | R: `process` | M → R |
 | `observes` | R-факт | M-элемент | R → M |
-| `drift` | M-элемент | R-элемент | M → R, диагностика |
+| `drift` | M-элемент | R-сущность | M → R, диагностика |
+
+`actor` не материализуется: это контекст исполнения.
 
 ## 3. Если нужно изменить X — правь Y
 
@@ -92,11 +94,13 @@ JSON Schema 2020-12 (ajv)
    │
    ▼
 Семантика (tools/validate.py):
-  • уникальность ID
+  • уникальность ID элементов, членов, связей и ссылок
   • ссылочная целостность from/to/ref
   • world ↔ kind
-  • abstractClass не источник materializes
-  • object имеет ровно один materializes
+  • materializes: только конкретный class → материализуемая R-сущность
+  • у каждой материализуемой R-сущности ровно один materializes или drift
+  • provenance.materializedFrom совпадает с materializes
+  • implements: class → interface; observes: R → M; deploys: component → process
   • layout.modelId == model.id
    │
    ▼

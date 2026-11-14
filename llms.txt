@@ -33,6 +33,7 @@
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): как предложить изменение.
 - [docs/rfcs/0000-template.md](docs/rfcs/0000-template.md): шаблон RFC для расширения ядра.
+- [docs/review/README.md](docs/review/README.md): панель ИИ-рецензентов и протокол ревью.
 - [docs/decisions/](docs/decisions/): принятые решения.
 - [CHANGELOG.md](CHANGELOG.md): история версий.
 - [docs/video/hello-triangle-demo.md](docs/video/hello-triangle-demo.md): план видео-демо.
@@ -48,5 +49,6 @@ make validate
 - Одно присутствие, один мир; второй мир не рендерится.
 - Семантика отделена от презентации.
 - Абстрактный класс не материализуется напрямую.
+- У каждой материализуемой R-сущности ровно один `materializes` или явный `drift`; `actor` не материализуется.
 - Новая сущность ядра — только после 3–5 тем курса и RFC.
 - Контент LearnOpenGL не копируется.

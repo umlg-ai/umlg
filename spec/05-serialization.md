@@ -76,6 +76,7 @@ m.rel.circle.extends.shape
     { "id": "M", "name": "Замысел", "kind": "mental" },
     { "id": "R", "name": "Воплощение", "kind": "real" }
   ],
+  "viewpoints": ["structure", "resources", "pipeline", "state", "sequence"],
   "elements": [
     {
       "id": "m.app",
@@ -84,7 +85,7 @@ m.rel.circle.extends.shape
       "name": "Application",
       "tags": ["opengl", "entry"],
       "members": [],
-      "notes": "..."
+      "description": "..."
     }
   ],
   "relations": [
@@ -147,11 +148,13 @@ m.rel.circle.extends.shape
 
 | `kind` | Из | В |
 |---|---|---|
-| `materializes` | M-класс | R-объект |
-| `implements` | M-интерфейс | M-класс |
-| `deploys` | M-компонент | R-процесс |
-| `observes` | R-факт | M-элемент |
-| `drift` | M-элемент | R-элемент |
+| `materializes` | M: конкретный `class` | R: `object`, `resource`, `process`, `stage`, `command` |
+| `implements` | M: `class` | M: `interface` |
+| `deploys` | M: `component` | R: `process` |
+| `observes` | R: факт | M: элемент |
+| `drift` | M: элемент | R: сущность |
+
+`actor` не материализуется: это контекст исполнения.
 
 ## 7. Члены
 
@@ -188,6 +191,37 @@ m.rel.circle.extends.shape
 - `isAbstract` допустим только у методов абстрактного класса или интерфейса.
 - Абстрактный метод не имеет тела/реализации в v0.1.
 - Видимость: `public`, `protected`, `private`, `package`.
+
+## 7.1. Инварианты
+
+Концепт или класс может объявлять проверяемые утверждения:
+
+```json
+{
+  "id": "m.state",
+  "world": "M",
+  "kind": "concept",
+  "name": "GLState",
+  "invariants": [
+    "VAO is bound",
+    "program is linked and active",
+    "attribute 0 is enabled",
+    "VBO is bound to VAO and has data"
+  ]
+}
+```
+
+`invariants` — массив строк. Это не исполняемая логика и не заменяет валидатор. В R-мире нарушение инварианта отображается как авария.
+
+## 7.2. Viewpoints
+
+Модель может объявлять, какие viewpoint-контракты она использует:
+
+```json
+"viewpoints": ["structure", "resources", "pipeline", "state", "sequence"]
+```
+
+Допустимые значения — `id` из [`02-viewpoints.md`](02-viewpoints.md). Поле необязательное: вьюер может выбрать viewpoint во время просмотра. Если поле указано, оно должно быть непустым и без дублей.
 
 ## 8. `layout.json`
 
@@ -229,7 +263,9 @@ m.rel.circle.extends.shape
 
 ## 9. Провенанс
 
-Опционально, но рекомендуется для R-элементов:
+Опционально, но рекомендуется для R-сущностей. **Провенанс производный**: источник истины — связь `materializes`. Если `materializedFrom` и связь расходятся, это ошибка валидации.
+
+Пример:
 
 ```json
 {
@@ -252,14 +288,17 @@ m.rel.circle.extends.shape
 Проверки:
 
 1. JSON Schema 2020-12.
-2. Уникальность `id`.
+2. Уникальность `id` элементов, членов, связей и ссылок.
 3. Ссылочная целостность `from`/`to`/`ref`.
 4. Мир элемента соответствует допустимым `kind`.
-5. `abstractClass` не источник `materializes`.
-6. `object` имеет ровно один `materializes` (или `drift`).
-7. `modelId` в layout совпадает с `id` модели.
+5. `materializes` идёт от конкретного `class` к материализуемому R-виду.
+6. Каждая материализуемая R-сущность имеет ровно один `materializes` (или явный `drift`).
+7. `provenance.materializedFrom` совпадает с источником `materializes`.
+8. `observes` идёт R → M, `implements` — M-класс → M-интерфейс.
+9. `modelId` в layout совпадает с `id` модели.
+10. `viewpoints` не содержит дублей и неизвестных значений.
 
-Семантические проверки (пункты 3–6) в v0.1 выполняются скриптом-валидатором, а не одной JSON Schema.
+Семантические проверки (пункты 2–10) в v0.1 выполняются скриптом-валидатором, а не одной JSON Schema.
 
 ## 11. Чего в v0.1 нет
 

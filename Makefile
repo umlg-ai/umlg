@@ -1,21 +1,26 @@
-.PHONY: validate json schema semantics links fmt help
+.PHONY: validate json schema semantics links test fmt help
 
 PYTHON ?= python3
 AJV ?= npx --yes ajv-cli@5
 
 help:
-	@echo "make validate  — JSON syntax, schema, semantics, links"
+	@echo "make validate  — JSON syntax, schema, semantics, tests, links"
 	@echo "make json      — JSON syntax only"
 	@echo "make schema    — JSON Schema validation (ajv)"
 	@echo "make semantics — cross-world and reference checks"
+	@echo "make test      — validator regression tests"
 	@echo "make links     — relative Markdown links"
 	@echo "make fmt       — reformat JSON files with python"
 
-validate: json schema semantics links
+validate: json schema semantics test links
 
 json:
-	@$(PYTHON) -m json.tool examples/hello-triangle/model.json > /dev/null
-	@$(PYTHON) -m json.tool examples/hello-triangle/layout.json > /dev/null
+	@for model in examples/*/model.json; do \
+		$(PYTHON) -m json.tool "$$model" > /dev/null || exit 1; \
+	done
+	@for layout in examples/*/layout.json; do \
+		$(PYTHON) -m json.tool "$$layout" > /dev/null || exit 1; \
+	done
 	@$(PYTHON) -m json.tool schema/umlg.schema.json > /dev/null
 	@$(PYTHON) -m json.tool schema/layout.schema.json > /dev/null
 	@echo "OK: JSON syntax"
@@ -25,7 +30,17 @@ schema:
 	@$(AJV) validate --spec=draft2020 -s schema/layout.schema.json -d "examples/**/layout.json"
 
 semantics:
-	@$(PYTHON) tools/validate.py examples/hello-triangle/model.json examples/hello-triangle/layout.json
+	@for model in examples/*/model.json; do \
+		layout="$${model%/model.json}/layout.json"; \
+		if [ -f "$$layout" ]; then \
+			$(PYTHON) tools/validate.py "$$model" "$$layout" || exit 1; \
+		else \
+			$(PYTHON) tools/validate.py "$$model" || exit 1; \
+		fi; \
+	done
+
+test:
+	@$(PYTHON) tools/test_validate.py
 
 links:
 	@$(PYTHON) tools/check_links.py

@@ -18,6 +18,18 @@ from pathlib import Path
 
 MENTAL_KINDS = {"class", "abstractClass", "interface", "component", "concept"}
 REAL_KINDS = {"object", "resource", "process", "stage", "command", "actor"}
+MATERIALIZABLE_KINDS = {"object", "resource", "process", "stage", "command"}
+INVARIANT_KINDS = {"class", "abstractClass", "concept"}
+VIEWPOINTS = {
+    "structure",
+    "resources",
+    "pipeline",
+    "state",
+    "sequence",
+    "runtime",
+    "learning",
+    "deployment",
+}
 MENTAL_RELATIONS = {
     "association",
     "inheritance",
@@ -56,34 +68,51 @@ def validate_model(model: dict, report: Report) -> dict[str, dict]:
     links = model.get("links", [])
 
     by_id: dict[str, dict] = {}
+    seen_ids: dict[str, str] = {}
+
+    def register(item: dict, label: str) -> bool:
+        item_id = item.get("id")
+        if not item_id:
+            report.error(f"{label} without id")
+            return False
+        if item_id in seen_ids:
+            report.error(
+                f"duplicate id: {item_id} "
+                f"({label} collides with {seen_ids[item_id]})"
+            )
+            return False
+        seen_ids[item_id] = label
+        return True
+
     for element in elements:
-        element_id = element.get("id")
-        if not element_id:
-            report.error("element without id")
-            continue
-        if element_id in by_id:
-            report.error(f"duplicate element id: {element_id}")
-        by_id[element_id] = element
+        if register(element, "element"):
+            by_id[element["id"]] = element
+        for member in element.get("members", []):
+            register(member, f"member of {element.get('id', '<unknown>')}")
 
     for relation in relations:
-        relation_id = relation.get("id")
-        if not relation_id:
-            report.error("relation without id")
-        elif relation_id in by_id:
-            report.error(f"duplicate id across elements/relations: {relation_id}")
-        else:
-            by_id[relation_id] = relation
+        if register(relation, "relation"):
+            by_id[relation["id"]] = relation
 
     for link in links:
-        link_id = link.get("id")
-        if not link_id:
-            report.error("link without id")
-        elif link_id in by_id:
-            report.error(f"duplicate id across elements/links: {link_id}")
-        else:
-            by_id[link_id] = link
+        if register(link, "link"):
+            by_id[link["id"]] = link
 
-    # World / kind consistency.
+    # Model-level optional fields.
+    viewpoints = model.get("viewpoints")
+    if viewpoints is not None:
+        if not isinstance(viewpoints, list) or not viewpoints:
+            report.error("viewpoints must be a non-empty array")
+        else:
+            seen_viewpoints: set[str] = set()
+            for viewpoint in viewpoints:
+                if viewpoint not in VIEWPOINTS:
+                    report.error(f"unknown viewpoint: {viewpoint}")
+                if viewpoint in seen_viewpoints:
+                    report.error(f"duplicate viewpoint: {viewpoint}")
+                seen_viewpoints.add(viewpoint)
+
+    # World / kind consistency and element-level fields.
     for element in elements:
         element_id = element.get("id", "<unknown>")
         world = element.get("world")
@@ -92,6 +121,29 @@ def validate_model(model: dict, report: Report) -> dict[str, dict]:
             report.error(f"{element_id}: kind '{kind}' is not allowed in M-world")
         if world == "R" and kind not in REAL_KINDS:
             report.error(f"{element_id}: kind '{kind}' is not allowed in R-world")
+        if world != "R" and element.get("provenance") is not None:
+            report.error(f"{element_id}: provenance is only allowed on R entities")
+        if kind == "actor" and element.get("provenance") is not None:
+            report.error(f"{element_id}: actor is a context and cannot have provenance")
+
+        invariants = element.get("invariants")
+        if invariants is not None:
+            if kind not in INVARIANT_KINDS:
+                report.error(
+                    f"{element_id}: invariants are only allowed on "
+                    "class, abstractClass or concept"
+                )
+            if not isinstance(invariants, list) or not invariants:
+                report.error(f"{element_id}: invariants must be a non-empty array")
+            else:
+                seen_invariants: set[str] = set()
+                for invariant in invariants:
+                    if not isinstance(invariant, str) or not invariant.strip():
+                        report.error(f"{element_id}: invariant must be a non-empty string")
+                        continue
+                    if invariant in seen_invariants:
+                        report.error(f"{element_id}: duplicate invariant: {invariant}")
+                    seen_invariants.add(invariant)
 
     # Relation integrity.
     for relation in relations:
@@ -116,6 +168,8 @@ def validate_model(model: dict, report: Report) -> dict[str, dict]:
 
     # Cross-world links.
     materializations: dict[str, list[str]] = {}
+    drift_targets: set[str] = set()
+
     for link in links:
         link_id = link.get("id", "<unknown>")
         kind = link.get("kind")
@@ -124,6 +178,7 @@ def validate_model(model: dict, report: Report) -> dict[str, dict]:
 
         if kind not in LINK_KINDS:
             report.error(f"{link_id}: unknown link kind '{kind}'")
+            continue
         if source not in by_id:
             report.error(f"{link_id}: unknown 'from' -> {source}")
             continue
@@ -133,35 +188,94 @@ def validate_model(model: dict, report: Report) -> dict[str, dict]:
 
         source_element = by_id[source]
         target_element = by_id[target]
+        source_world = source_element.get("world")
+        target_world = target_element.get("world")
+        source_kind = source_element.get("kind")
+        target_kind = target_element.get("kind")
 
         if kind == "materializes":
-            if source_element.get("kind") == "abstractClass":
-                report.error(
-                    f"{link_id}: abstract class '{source}' cannot be materialized directly"
-                )
-            if source_element.get("world") != "M" or target_element.get("world") != "R":
+            if source_world != "M" or target_world != "R":
                 report.error(f"{link_id}: materializes must go M -> R")
-            materializations.setdefault(target, []).append(source)
-        elif kind in {"implements"}:
-            if source_element.get("world") != "M" or target_element.get("world") != "M":
-                report.error(f"{link_id}: {kind} must stay inside M-world")
-        elif kind in {"deploys", "observes", "drift"}:
-            if source_element.get("world") != "M" or target_element.get("world") != "R":
-                report.warn(
-                    f"{link_id}: expected M -> R for '{kind}', got "
-                    f"{source_element.get('world')} -> {target_element.get('world')}"
+            if source_kind != "class":
+                report.error(
+                    f"{link_id}: materializes source must be a concrete class, "
+                    f"got '{source_kind}'"
                 )
+            if target_kind not in MATERIALIZABLE_KINDS:
+                report.error(
+                    f"{link_id}: materializes target must be one of "
+                    f"{sorted(MATERIALIZABLE_KINDS)}, got '{target_kind}'"
+                )
+            materializations.setdefault(target, []).append(source)
+        elif kind == "implements":
+            if source_world != "M" or target_world != "M":
+                report.error(f"{link_id}: implements must stay inside M-world")
+            if source_kind != "class":
+                report.error(
+                    f"{link_id}: implements source must be a class, got '{source_kind}'"
+                )
+            if target_kind != "interface":
+                report.error(
+                    f"{link_id}: implements target must be an interface, "
+                    f"got '{target_kind}'"
+                )
+        elif kind == "deploys":
+            if source_world != "M" or target_world != "R":
+                report.error(f"{link_id}: deploys must go M -> R")
+            if source_kind != "component":
+                report.error(
+                    f"{link_id}: deploys source must be a component, got '{source_kind}'"
+                )
+            if target_kind != "process":
+                report.error(
+                    f"{link_id}: deploys target must be a process, got '{target_kind}'"
+                )
+        elif kind == "observes":
+            if source_world != "R" or target_world != "M":
+                report.error(f"{link_id}: observes must go R -> M")
+        elif kind == "drift":
+            if source_world != "M" or target_world != "R":
+                report.error(f"{link_id}: drift must go M -> R")
+            drift_targets.add(target)
 
-    # Every R object has exactly one materializing class.
+    # Every materializable R entity has exactly one materializing class,
+    # unless an explicit drift link covers it. Provenance is derived.
     for element in elements:
-        if element.get("kind") != "object":
+        if element.get("world") != "R":
             continue
+        if element.get("kind") not in MATERIALIZABLE_KINDS:
+            continue
+
         element_id = element.get("id", "<unknown>")
         sources = materializations.get(element_id, [])
+        provenance = element.get("provenance")
+
         if not sources:
-            report.warn(f"{element_id}: object has no 'materializes' link (drift?)")
-        elif len(sources) > 1:
-            report.error(f"{element_id}: object has multiple materializing classes: {sources}")
+            if element_id in drift_targets:
+                report.warn(f"{element_id}: no materializes link (covered by drift)")
+            else:
+                report.error(
+                    f"{element_id}: materializable R entity has no "
+                    "'materializes' link"
+                )
+            if provenance is not None:
+                report.error(f"{element_id}: provenance requires a 'materializes' link")
+            continue
+
+        if len(sources) > 1:
+            report.error(
+                f"{element_id}: multiple materializing classes: {sources}"
+            )
+            continue
+
+        if provenance is not None:
+            materialized_from = provenance.get("materializedFrom")
+            if materialized_from != sources[0]:
+                report.error(
+                    f"{element_id}: provenance.materializedFrom "
+                    f"'{materialized_from}' does not match materializes "
+                    f"source '{sources[0]}'"
+                )
 
     return by_id
 

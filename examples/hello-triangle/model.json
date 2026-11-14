@@ -3,6 +3,7 @@
   "id": "hello-triangle",
   "name": "Hello Triangle",
   "description": "Первый вертикальный срез UMLG: как три вершины попадают на экран. M-мир описывает замысел, R-мир — воплощение в OpenGL.",
+  "viewpoints": ["structure", "resources", "pipeline", "state", "sequence"],
   "worlds": [
     {
       "id": "M",
@@ -134,7 +135,7 @@
       "world": "M",
       "kind": "class",
       "name": "VertexShader",
-      "description": "Конкретная реализация стадии вершин.",
+      "description": "Конкретная реализация стадии вершин. В OpenGL это отдельный GL-объект; пример сворачивает его в ShaderProgram.",
       "members": [
         {
           "id": "m.vertexShader.compile",
@@ -152,7 +153,7 @@
       "world": "M",
       "kind": "class",
       "name": "FragmentShader",
-      "description": "Конкретная реализация стадии фрагментов.",
+      "description": "Конкретная реализация стадии фрагментов. В OpenGL это отдельный GL-объект; пример сворачивает его в ShaderProgram.",
       "members": [
         {
           "id": "m.fragmentShader.compile",
@@ -353,7 +354,14 @@
       "kind": "concept",
       "name": "GLState",
       "description": "Правила машины состояний: что должно быть привязано перед draw.",
-      "tags": ["concept", "invariants"]
+      "tags": ["concept", "invariants"],
+      "invariants": [
+        "ShaderProgram is linked and active",
+        "VAO is bound",
+        "attribute 0 is enabled and points to position data",
+        "VBO is bound to VAO and has data",
+        "framebuffer exists and is complete"
+      ]
     },
     {
       "id": "r.obj.app",
