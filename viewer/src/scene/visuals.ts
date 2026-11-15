@@ -411,7 +411,7 @@ export class ElementVisual {
     }
     for (const entry of this.emissiveStyles) {
       entry.material.emissiveIntensity = this.selected
-        ? entry.intensity + 0.35
+        ? entry.intensity + 0.5
         : entry.intensity;
     }
   }
