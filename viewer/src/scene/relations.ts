@@ -27,6 +27,8 @@ function edgeMaterial(
   return new THREE.LineBasicMaterial({ color, transparent: true, opacity });
 }
 
+const WHITE = new THREE.Color(0xffffff);
+
 export class RelationVisual {
   readonly relation: Relation;
   readonly group: THREE.Group;
@@ -34,15 +36,25 @@ export class RelationVisual {
   private readonly from: THREE.Vector3;
   private readonly to: THREE.Vector3;
   private readonly material: THREE.LineBasicMaterial | THREE.LineDashedMaterial;
+  private readonly baseLineColor: THREE.Color;
+  private readonly extraStyles: Array<{
+    material: THREE.Material & { opacity: number; color?: THREE.Color };
+    opacity: number;
+    color?: THREE.Color;
+  }> = [];
   private readonly pulse?: THREE.Mesh;
   private readonly pulseSpeed: number;
   private readonly pulsePhase: number;
+  private density: number;
+  private highlighted = false;
+  private labelVisible = false;
 
   constructor(relation: Relation, options: RelationVisualOptions) {
     this.relation = relation;
     this.from = options.from.clone();
     this.to = options.to.clone();
     this.group = new THREE.Group();
+    this.density = options.density;
 
     const direction = this.to.clone().sub(this.from);
     const length = direction.length();
@@ -59,6 +71,7 @@ export class RelationVisual {
 
     const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
     this.material = edgeMaterial(color, dashed, opacity);
+    this.baseLineColor = new THREE.Color(color);
     const line = new THREE.Line(geometry, this.material);
     if (dashed) {
       line.computeLineDistances();
@@ -121,6 +134,28 @@ export class RelationVisual {
       this.pulseSpeed = 0;
       this.pulsePhase = 0;
     }
+
+    this.captureExtraStyles();
+    this.setDensity(options.density);
+  }
+
+  private captureExtraStyles(): void {
+    const seen = new Set<THREE.Material>();
+    this.group.traverse((object) => {
+      if (!(object instanceof THREE.Mesh) && !(object instanceof THREE.Line)) return;
+      const source = object.material;
+      const materials = Array.isArray(source) ? source : [source];
+      for (const material of materials) {
+        if (!material || material === this.material || seen.has(material)) continue;
+        seen.add(material);
+        const typed = material as THREE.Material & { opacity: number; color?: THREE.Color };
+        this.extraStyles.push({
+          material: typed,
+          opacity: typed.opacity,
+          color: typed.color?.clone(),
+        });
+      }
+    });
   }
 
   connect(id: string): boolean {
@@ -128,15 +163,36 @@ export class RelationVisual {
   }
 
   setHighlighted(highlighted: boolean): void {
-    this.labelElement.classList.toggle("visible", highlighted);
+    this.highlighted = highlighted;
+    this.applyLabelVisibility();
+    this.applyStyle();
   }
 
   setAlwaysVisible(visible: boolean): void {
-    this.setHighlighted(visible);
+    this.labelVisible = visible;
+    this.applyLabelVisibility();
   }
 
   setDensity(density: number): void {
-    this.material.opacity = 0.1 + Math.max(0, Math.min(1, density)) * 0.65;
+    this.density = Math.max(0, Math.min(1, density));
+    this.applyStyle();
+  }
+
+  private applyLabelVisibility(): void {
+    this.labelElement.classList.toggle("visible", this.labelVisible || this.highlighted);
+  }
+
+  private applyStyle(): void {
+    const boost = this.highlighted ? 1.4 : 1;
+    this.material.opacity = Math.min(1, (0.1 + this.density * 0.65) * boost);
+    this.material.color.copy(this.baseLineColor).lerp(WHITE, this.highlighted ? 0.18 : 0);
+
+    for (const entry of this.extraStyles) {
+      entry.material.opacity = Math.min(1, entry.opacity * (this.highlighted ? 1.2 : 1));
+      if (entry.color && entry.material.color) {
+        entry.material.color.copy(entry.color).lerp(WHITE, this.highlighted ? 0.12 : 0);
+      }
+    }
   }
 
   animate(now: number): void {

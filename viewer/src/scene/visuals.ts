@@ -9,6 +9,8 @@ export interface ElementVisualOptions {
   onSelect: (id: string) => void;
 }
 
+const WHITE = new THREE.Color(0xffffff);
+
 function openBoxEdges(width: number, height: number, depth: number): THREE.BufferGeometry {
   const x = width / 2;
   const y = height / 2;
@@ -80,6 +82,15 @@ export class ElementVisual {
   private readonly label: CSS2DObject;
   private readonly selectionRing: THREE.Mesh;
   private readonly selectionMaterial: THREE.MeshBasicMaterial;
+  private readonly materialStyles: Array<{
+    material: THREE.Material & { opacity: number; color?: THREE.Color };
+    opacity: number;
+    color?: THREE.Color;
+  }> = [];
+  private readonly emissiveStyles: Array<{
+    material: THREE.MeshStandardMaterial;
+    intensity: number;
+  }> = [];
   private selected = false;
   private density: number;
   private labelsVisible = true;
@@ -348,7 +359,32 @@ export class ElementVisual {
     }
     this.group.add(this.label);
 
+    this.captureStyles();
     this.setDensity(options.density);
+  }
+
+  private captureStyles(): void {
+    const seen = new Set<THREE.Material>();
+    for (const mesh of this.meshes) {
+      const source = mesh.material;
+      const materials = Array.isArray(source) ? source : [source];
+      for (const material of materials) {
+        if (!material || seen.has(material)) continue;
+        seen.add(material);
+        const typed = material as THREE.Material & { opacity: number; color?: THREE.Color };
+        this.materialStyles.push({
+          material: typed,
+          opacity: typed.opacity,
+          color: typed.color?.clone(),
+        });
+        if (material instanceof THREE.MeshStandardMaterial) {
+          this.emissiveStyles.push({
+            material,
+            intensity: material.emissiveIntensity,
+          });
+        }
+      }
+    }
   }
 
   setSelected(selected: boolean): void {
@@ -356,8 +392,28 @@ export class ElementVisual {
     this.selectionMaterial.opacity = selected ? 0.85 : 0;
     this.labelElement.classList.toggle("selected", selected);
     this.group.scale.setScalar(selected ? 1.06 : 1);
+    this.applySelectionStyle();
     this.applyLabelVisibility();
     this.setDensity(this.density);
+  }
+
+  private applySelectionStyle(): void {
+    for (const entry of this.materialStyles) {
+      entry.material.opacity = this.selected
+        ? Math.min(1, entry.opacity + 0.22)
+        : entry.opacity;
+      if (entry.color && entry.material.color) {
+        entry.material.color.copy(entry.color);
+        if (this.selected) {
+          entry.material.color.lerp(WHITE, 0.12);
+        }
+      }
+    }
+    for (const entry of this.emissiveStyles) {
+      entry.material.emissiveIntensity = this.selected
+        ? entry.intensity + 0.35
+        : entry.intensity;
+    }
   }
 
   setLabelVisible(visible: boolean): void {
