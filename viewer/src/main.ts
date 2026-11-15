@@ -88,6 +88,11 @@ async function main(): Promise<void> {
     onProgress: (value) => ui.setProgress(value),
     onSwap: (targetWorld, targetId) => {
       scene.showWorld(targetWorld, targetId ?? null);
+      if (targetId) {
+        // The swap happens under the opaque phase veil, so centering the twin
+        // reads as an arrival rather than a camera fly-through.
+        scene.focusOn(targetId);
+      }
       ui.setWorld(targetWorld);
       applyMode();
     },
