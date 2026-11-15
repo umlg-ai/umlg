@@ -21,3 +21,22 @@ jobs:
 
       - name: Validate JSON, schema, semantics, tests and links
         run: make validate
+
+  viewer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: viewer/package-lock.json
+
+      - name: Install viewer dependencies
+        working-directory: viewer
+        run: npm ci
+
+      - name: Type-check and build viewer
+        working-directory: viewer
+        run: npm run build

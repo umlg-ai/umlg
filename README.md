@@ -19,13 +19,17 @@ UMLG — экспериментальный визуальный язык арх
 - JSON-схемы — [`schema/`](schema/);
 - пример `Hello Triangle` — [`examples/hello-triangle/`](examples/hello-triangle/);
 - семантический валидатор — [`tools/validate.py`](tools/validate.py);
+- web-вьюер V0–V2 — [`viewer/`](viewer/README.md): M/R-миры, инспектор, фазовый переход, non-3D список;
 - Topic Card для курса — [`course/hello-triangle.md`](course/hello-triangle.md);
 - матрица курса — [`course/README.md`](course/README.md);
 - заметки по вьюеру — [`viewer/README.md`](viewer/README.md).
 
+![M-мир в web-вьюере: выбран ShaderProgram, справа инспектор и двойник](viewer/screenshots/m-world.png)
+
 ## Чего ещё нет
 
-- вьюер/редактор (следующий milestone);
+- редактор модели;
+- NPC rule engine и runtime-метрики;
 - видео-демо;
 - S-мир (код/шейдеры);
 - импорт/экспорт UML/XMI;
@@ -65,10 +69,27 @@ UMLG — экспериментальный визуальный язык арх
    ```
 
 4. Ответь на вопросы в [`examples/hello-triangle/self-check.md`](examples/hello-triangle/self-check.md).
+5. Открой вьюер:
+
+   ```bash
+   cd viewer
+   npm ci
+   npm run dev
+   ```
+
+   Затем `http://localhost:5173/`. Подробности — [`viewer/README.md`](viewer/README.md).
 
 ## Демо
 
-Видео-демо находится в производстве: вьюер ещё не реализован.
+Web-вьюер запускается локально и показывает вертикальный срез `Hello Triangle`:
+
+- M-мир — `viewer/screenshots/m-world.png`;
+- R-мир — `viewer/screenshots/r-world.png`;
+- Architecture-режим — `viewer/screenshots/architecture-mode.png`.
+
+Удержание `P` переключает миры; инспектор и список работают без 3D.
+
+Видео-демо находится в производстве:
 
 - сценарий и раскадровка — [`docs/video/hello-triangle-demo.md`](docs/video/hello-triangle-demo.md);
 - после записи здесь появятся GIF и ссылка на YouTube.

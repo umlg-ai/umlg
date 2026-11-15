@@ -29,6 +29,12 @@
 - [course/hello-triangle.md](course/hello-triangle.md): Topic Card.
 - [course/README.md](course/README.md): матрица тем LearnOpenGL.
 
+## Viewer
+
+- [viewer/README.md](viewer/README.md): web-вьюер V0–V2, запуск и архитектура.
+- [viewer/src/main.ts](viewer/src/main.ts): связывание core, scene, transition и ui.
+- [viewer/screenshots/](viewer/screenshots/): M-мир, R-мир, Architecture-режим.
+
 ## Process
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): как предложить изменение.
@@ -42,6 +48,7 @@
 
 ```bash
 make validate
+make viewer-build   # требует npm ci в viewer/
 ```
 
 ## Constraints

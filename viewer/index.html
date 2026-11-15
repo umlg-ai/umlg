@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="UMLG — интерактивный вьюер архитектуры с двумя мирами: M (Замысел) и R (Воплощение)."
+    />
+    <title>UMLG — Hello Triangle</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23070b18'/%3E%3Cpath d='M8 8v10a8 8 0 0 0 16 0V8' fill='none' stroke='%23a99bff' stroke-width='3'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="scene-container" aria-hidden="true"></div>
+      <div id="label-layer"></div>
+
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">UMLG</span>
+          <span class="brand-sub">architecture you can enter</span>
+        </div>
+
+        <div class="world-badge" id="world-badge" data-world="M">
+          <span class="world-dot"></span>
+          <span id="world-name">M — Замысел</span>
+        </div>
+
+        <div class="twin-indicator" id="twin-indicator" hidden></div>
+
+        <div class="phase-state" id="phase-state">idle</div>
+      </header>
+
+      <aside class="panel list-panel" aria-label="Список элементов">
+        <div class="panel-head">
+          <div>
+            <h2>Элементы</h2>
+            <p class="panel-sub" id="list-subtitle">M-мир</p>
+          </div>
+          <span class="count" id="element-count">0</span>
+        </div>
+        <label class="search">
+          <span class="sr-only">Фильтр по имени</span>
+          <input id="element-filter" type="search" placeholder="Фильтр: Shader, VBO…" autocomplete="off" />
+        </label>
+        <div class="element-list" id="element-list" role="list"></div>
+        <p class="panel-note">Это non-3D путь: те же данные доступны без камеры и анимации.</p>
+      </aside>
+
+      <aside class="panel inspector-panel" aria-label="Инспектор элемента">
+        <div class="panel-head">
+          <div>
+            <h2>Инспектор</h2>
+            <p class="panel-sub" id="inspector-subtitle">ничего не выбрано</p>
+          </div>
+          <button class="icon-button" id="clear-selection" type="button" title="Снять выделение" hidden>×</button>
+        </div>
+        <div id="inspector" class="inspector">
+          <p class="empty-state">Выбери элемент в сцене или в списке. Точные данные — здесь, а не в NPC.</p>
+        </div>
+      </aside>
+
+      <div class="bottom-bar" role="toolbar" aria-label="Управление вьюером">
+        <button
+          class="phase-button"
+          id="phase-button"
+          type="button"
+          title="Удерживай P или эту кнопку"
+        >
+          <span class="phase-button-label">Фаза</span>
+          <span class="phase-button-hint">удерживай P</span>
+          <span class="phase-meter"><span id="phase-meter-fill"></span></span>
+        </button>
+
+        <div class="control-group" aria-label="Режим чтения">
+          <span class="control-label">Режим</span>
+          <div class="segmented" id="mode-toggle">
+            <button type="button" data-mode="story" class="active">Story</button>
+            <button type="button" data-mode="architecture">Architecture</button>
+          </div>
+        </div>
+
+        <div class="control-group density-group">
+          <label class="control-label" for="density">Плотность</label>
+          <input id="density" type="range" min="0" max="1" step="0.05" value="0.7" />
+        </div>
+
+        <label class="toggle">
+          <input id="reduced-motion" type="checkbox" />
+          <span>reduced motion</span>
+        </label>
+
+        <button class="text-button" id="reset-camera" type="button">Сброс камеры</button>
+      </div>
+
+      <div class="hint" id="hint">
+        Клик — выбрать · drag — вращать · колесо — масштаб · удержание P — фаза
+      </div>
+
+      <div class="phase-veil" id="phase-veil" aria-hidden="true">
+        <div class="phase-veil-ring"></div>
+        <div class="phase-veil-label" id="phase-veil-label"></div>
+      </div>
+
+      <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+      <div class="loading" id="loading">
+        <div class="loading-card">
+          <div class="loading-mark">UMLG</div>
+          <p id="loading-text">Загружаю модель и проверяю инварианты…</p>
+        </div>
+      </div>
+
+      <div class="error-screen" id="error-screen" hidden>
+        <div class="error-card">
+          <h2>Модель не загрузилась</h2>
+          <pre id="error-text"></pre>
+          <p class="error-hint">Проверь `make validate` и путь к `model.json` / `layout.json`.</p>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

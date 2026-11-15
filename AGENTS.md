@@ -60,7 +60,7 @@ UMLG — визуальный язык архитектуры с двумя он
 | `examples/<name>/self-check.md` | вопросы с ответами |
 | `course/<topic>.md` | Topic Card |
 | `course/README.md` | матрица курса |
-| `viewer/` | будущий web-вьюер (пока только README) |
+| `viewer/` | web-вьюер V0–V2: `core/`, `scene/`, `ui/`, `transition/` |
 | `tools/validate.py` | семантическая валидация |
 | `tools/check_links.py` | проверка относительных ссылок |
 | `docs/` | руководства, решения, видео |
@@ -72,6 +72,7 @@ UMLG — визуальный язык архитектуры с двумя он
 make validate   # JSON + schema + семантика + ссылки
 make links      # только ссылки
 make fmt        # форматирование JSON (если настроено)
+make viewer-build  # типы + production-сборка вьюера
 ```
 
 Вручную:
@@ -81,7 +82,11 @@ python3 tools/validate.py examples/hello-triangle/model.json examples/hello-tria
 npx --yes ajv-cli@5 validate --spec=draft2020 -s schema/umlg.schema.json -d "examples/**/model.json"
 npx --yes ajv-cli@5 validate --spec=draft2020 -s schema/layout.schema.json -d "examples/**/layout.json"
 python3 tools/check_links.py
+
+cd viewer && npm ci && npm run build
 ```
+
+Если правка затрагивает `viewer/src`, `make validate` недостаточно: отдельно прогони `npm run build` в `viewer/`.
 
 ## 6. Как вносить изменения
 
@@ -153,6 +158,7 @@ python3 tools/check_links.py
 Правка готова, если:
 
 - [ ] `make validate` проходит;
+- [ ] `npm run build` в `viewer/` проходит, если менялся `viewer/src`;
 - [ ] обновлены спецификация и схема (если менялся формат);
 - [ ] обновлён пример или добавлен новый;
 - [ ] обновлён `CHANGELOG.md` при изменении поведения;
@@ -162,13 +168,11 @@ python3 tools/check_links.py
 
 ## 10. Текущий фокус
 
-M1 — vertical slice:
+M1 закрыт технически: web-вьюер V0–V2 работает на `Hello Triangle`. Текущий фокус — M2:
 
-1. Web-вьюер: загрузка `model.json` + `layout.json`.
-2. M-мир: цеха, призрак `Shader`, связи, инспектор.
-3. R-мир: объекты, ресурсы, конвейер, агенты.
-4. Фазовый переход M ↔ R.
-5. HUD мира и двойника.
-6. Видео-демо 90–120 с.
+1. User test #1: 5–8 участников, think-aloud, 7 вопросов self-check.
+2. Метрики: время, ошибки, уверенность, SUS/NASA-TLX; сравнение с текстом и 2D-схемой.
+3. Записать видео-демо 90–120 с по готовому сценарию.
+4. Собрать список правок до M3.
 
 Не начинай `Hello Window`, пока `Hello Triangle` не проходит self-check на людях.

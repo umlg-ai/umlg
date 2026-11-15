@@ -1,16 +1,18 @@
-.PHONY: validate json schema semantics links test fmt help
+.PHONY: validate json schema semantics links test fmt help viewer viewer-build
 
 PYTHON ?= python3
 AJV ?= npx --yes ajv-cli@5
 
 help:
-	@echo "make validate  — JSON syntax, schema, semantics, tests, links"
-	@echo "make json      — JSON syntax only"
-	@echo "make schema    — JSON Schema validation (ajv)"
-	@echo "make semantics — cross-world and reference checks"
-	@echo "make test      — validator regression tests"
-	@echo "make links     — relative Markdown links"
-	@echo "make fmt       — reformat JSON files with python"
+	@echo "make validate     — JSON syntax, schema, semantics, tests, links"
+	@echo "make json         — JSON syntax only"
+	@echo "make schema       — JSON Schema validation (ajv)"
+	@echo "make semantics    — cross-world and reference checks"
+	@echo "make test         — validator regression tests"
+	@echo "make links        — relative Markdown links"
+	@echo "make fmt          — reformat JSON files with python"
+	@echo "make viewer       — start the web viewer dev server"
+	@echo "make viewer-build — type-check and build the web viewer"
 
 validate: json schema semantics test links
 
@@ -44,6 +46,12 @@ test:
 
 links:
 	@$(PYTHON) tools/check_links.py
+
+viewer:
+	cd viewer && npm run dev
+
+viewer-build:
+	cd viewer && npm run build
 
 fmt:
 	@$(PYTHON) - <<'PY'

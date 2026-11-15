@@ -1,6 +1,7 @@
 node_modules/
 dist/
 build/
+viewer/public/
 .DS_Store
 *.log
 __pycache__/
