@@ -46,6 +46,7 @@ UMLG — экспериментальный визуальный язык арх
 4. [`docs/decisions/`](docs/decisions/) — принятые решения и их причины.
 5. [`docs/rfcs/0000-template.md`](docs/rfcs/0000-template.md) — как предлагать изменения ядра.
 6. [`.github/copilot-instructions.md`](.github/copilot-instructions.md) — короткая версия для Copilot.
+7. [`docs/handoff.md`](docs/handoff.md) — текущее состояние и следующие шаги.
 
 Главное правило: **не менять семантику молча**. Сомнение → issue или RFC.
 

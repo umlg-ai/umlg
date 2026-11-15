@@ -23,6 +23,7 @@ UMLG — визуальный язык архитектуры с двумя он
 2. [`spec/01-worlds.md`](spec/01-worlds.md) — онтология M/R и инварианты.
 3. [`spec/05-serialization.md`](spec/05-serialization.md) — модель, layout, ID.
 4. [`docs/ai-handbook.md`](docs/ai-handbook.md) — карта репозитория и типовые ошибки.
+5. [`docs/handoff.md`](docs/handoff.md) — текущее состояние, следующий milestone и правила передачи.
 
 Если правка касается визуала — [`spec/03-visual-grammar.md`](spec/03-visual-grammar.md).
 Если переходов — [`spec/04-transitions.md`](spec/04-transitions.md).
@@ -176,3 +177,5 @@ M1 закрыт технически: web-вьюер V0–V2 работает н
 4. Собрать список правок до M3.
 
 Не начинай `Hello Window`, пока `Hello Triangle` не проходит self-check на людях.
+
+Состояние и следующие шаги ведутся в [`docs/handoff.md`](docs/handoff.md).
