@@ -50,7 +50,7 @@
     }
   },
   "camera": {
-    "M": { "position": [42, 44, 24], "target": [0, 0, -22], "fov": 50 },
-    "R": { "position": [42, 44, 24], "target": [0, 0, -22], "fov": 50 }
+    "M": { "position": [28, 30, 14], "target": [0, 0, -21], "fov": 50 },
+    "R": { "position": [28, 30, 14], "target": [0, 0, -21], "fov": 50 }
   }
 }

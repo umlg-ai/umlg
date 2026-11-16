@@ -100,7 +100,7 @@ export class SceneManager {
     this.scene.add(this.rimLight);
 
     this.selectionLight = new THREE.PointLight(0x9fd4ff, 0, 8, 2);
-    this.selectionLight.position.set(0, 1.4, 0);
+    this.selectionLight.position.set(0, 1.0, 0);
     this.scene.add(this.selectionLight);
 
     this.grid = new THREE.GridHelper(150, 75, 0x1b2a48, 0x2f4c7a);
@@ -228,7 +228,7 @@ export class SceneManager {
     }
     this.selectedId = id;
     visual.setSelected(true);
-    this.selectionLight.position.copy(visual.basePosition).add(new THREE.Vector3(0, 1.4, 0));
+    this.selectionLight.position.copy(visual.basePosition).add(new THREE.Vector3(0, 1.0, 0));
     this.selectionLight.color.set(this.currentWorld === "M" ? 0x9fd4ff : 0xffb168);
     this.selectionLight.intensity = this.currentWorld === "M" ? 4 : 5;
     for (const relation of this.relationVisuals) {

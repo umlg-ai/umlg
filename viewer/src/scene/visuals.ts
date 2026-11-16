@@ -11,41 +11,6 @@ export interface ElementVisualOptions {
 
 const WHITE = new THREE.Color(0xffffff);
 
-function openBoxEdges(width: number, height: number, depth: number): THREE.BufferGeometry {
-  const x = width / 2;
-  const y = height / 2;
-  const z = depth / 2;
-  const corners = [
-    new THREE.Vector3(-x, -y, -z),
-    new THREE.Vector3(x, -y, -z),
-    new THREE.Vector3(x, -y, z),
-    new THREE.Vector3(-x, -y, z),
-    new THREE.Vector3(-x, y, -z),
-    new THREE.Vector3(x, y, -z),
-    new THREE.Vector3(x, y, z),
-    new THREE.Vector3(-x, y, z),
-  ];
-  const edges: Array<[number, number]> = [
-    [0, 1],
-    [1, 2],
-    [2, 3],
-    [3, 0],
-    [4, 5],
-    [5, 6],
-    [6, 7],
-    [7, 4],
-    // 0-4 is intentionally missing: the contour is open.
-    [1, 5],
-    [2, 6],
-    [3, 7],
-  ];
-  const points: THREE.Vector3[] = [];
-  for (const [a, b] of edges) {
-    points.push(corners[a], corners[b]);
-  }
-  return new THREE.BufferGeometry().setFromPoints(points);
-}
-
 function addEdges(
   group: THREE.Group,
   geometry: THREE.BufferGeometry,
@@ -71,6 +36,111 @@ function addEdges(
   }
   group.add(lines);
   return lines;
+}
+
+/**
+ * Silhouettes are the primary type cue in the viewer: a class is a drafted
+ * workshop with a gabled roof, an object is a working workshop with a sawtooth
+ * roof and a chimney, a resource is a silo, a stage is a conveyor, and so on.
+ * Colour stays a secondary accent; the outline must read on its own.
+ */
+function houseGeometry(
+  width: number,
+  wallHeight: number,
+  roofHeight: number,
+  depth: number,
+): THREE.ExtrudeGeometry {
+  const halfWidth = width / 2;
+  const shape = new THREE.Shape();
+  shape.moveTo(-halfWidth, 0);
+  shape.lineTo(halfWidth, 0);
+  shape.lineTo(halfWidth, wallHeight);
+  shape.lineTo(0, wallHeight + roofHeight);
+  shape.lineTo(-halfWidth, wallHeight);
+  shape.closePath();
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: false,
+    curveSegments: 1,
+  });
+  geometry.translate(0, -(wallHeight + roofHeight) / 2, -depth / 2);
+  return geometry;
+}
+
+function openHouseEdges(
+  width: number,
+  wallHeight: number,
+  roofHeight: number,
+  depth: number,
+): THREE.BufferGeometry {
+  const halfWidth = width / 2;
+  const halfDepth = depth / 2;
+  const bottom = -(wallHeight + roofHeight) / 2;
+  const eaves = bottom + wallHeight;
+  const ridge = eaves + roofHeight;
+  const point = (x: number, y: number, z: number): THREE.Vector3 =>
+    new THREE.Vector3(x, y, z);
+  const segments: Array<[THREE.Vector3, THREE.Vector3]> = [
+    [point(-halfWidth, bottom, -halfDepth), point(halfWidth, bottom, -halfDepth)],
+    [point(halfWidth, bottom, -halfDepth), point(halfWidth, bottom, halfDepth)],
+    [point(halfWidth, bottom, halfDepth), point(-halfWidth, bottom, halfDepth)],
+    [point(-halfWidth, eaves, -halfDepth), point(halfWidth, eaves, -halfDepth)],
+    [point(halfWidth, eaves, -halfDepth), point(halfWidth, eaves, halfDepth)],
+    [point(halfWidth, eaves, halfDepth), point(-halfWidth, eaves, halfDepth)],
+    [point(-halfWidth, eaves, halfDepth), point(-halfWidth, eaves, -halfDepth)],
+    [point(0, ridge, -halfDepth), point(0, ridge, halfDepth)],
+    [point(-halfWidth, eaves, -halfDepth), point(0, ridge, -halfDepth)],
+    [point(halfWidth, eaves, -halfDepth), point(0, ridge, -halfDepth)],
+    [point(-halfWidth, eaves, halfDepth), point(0, ridge, halfDepth)],
+    [point(halfWidth, eaves, halfDepth), point(0, ridge, halfDepth)],
+    [point(-halfWidth, bottom, -halfDepth), point(-halfWidth, eaves, -halfDepth)],
+    [point(halfWidth, bottom, -halfDepth), point(halfWidth, eaves, -halfDepth)],
+    [point(halfWidth, bottom, halfDepth), point(halfWidth, eaves, halfDepth)],
+    // The front-left vertical edge is missing on purpose: the ghost contour is open.
+  ];
+  const points: THREE.Vector3[] = [];
+  for (const [a, b] of segments) points.push(a, b);
+  return new THREE.BufferGeometry().setFromPoints(points);
+}
+
+function polygonShape(radius: number, sides: number): THREE.Shape {
+  const shape = new THREE.Shape();
+  for (let index = 0; index < sides; index += 1) {
+    const angle = (index / sides) * Math.PI * 2 + Math.PI / 2;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    if (index === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  return shape;
+}
+
+function hexRingGeometry(outer: number, inner: number, depth: number): THREE.ExtrudeGeometry {
+  const shape = polygonShape(outer, 6);
+  shape.holes.push(polygonShape(inner, 6));
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: false,
+    curveSegments: 1,
+  });
+  geometry.translate(0, 0, -depth / 2);
+  return geometry;
+}
+
+function sawtoothGeometry(width: number, height: number, depth: number): THREE.ExtrudeGeometry {
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0);
+  shape.lineTo(width, 0);
+  shape.lineTo(width, height);
+  shape.closePath();
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: false,
+    curveSegments: 1,
+  });
+  geometry.translate(0, 0, -depth / 2);
+  return geometry;
 }
 
 export class ElementVisual {
@@ -141,141 +211,239 @@ export class ElementVisual {
       return mesh;
     };
 
-    let labelHeight = 1.8;
+    let labelHeight = 0.95;
 
     switch (element.kind) {
       case "class": {
-        const geometry = new THREE.BoxGeometry(2.4, 1.6, 2.4);
-        addMesh(geometry, additive(0.16, 0.55));
-        addEdges(this.group, new THREE.EdgesGeometry(geometry), color, { opacity: 0.9 });
-        labelHeight = 1.8;
+        const geometry = houseGeometry(1.8, 0.95, 0.5, 1.4);
+        addMesh(geometry, additive(0.14, 0.55));
+        addEdges(this.group, new THREE.EdgesGeometry(geometry), color, { opacity: 0.92 });
+        const mock = addMesh(
+          new THREE.BoxGeometry(0.48, 0.38, 0.48),
+          new THREE.MeshBasicMaterial({
+            color,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.32,
+          }),
+          -0.18,
+        );
+        mock.position.set(0, -0.18, 0);
+        labelHeight = 1.0;
         break;
       }
       case "abstractClass": {
-        const geometry = new THREE.BoxGeometry(2.4, 1.6, 2.4);
-        addMesh(geometry, additive(0.09, 0.75));
-        addEdges(this.group, openBoxEdges(2.4, 1.6, 2.4), color, {
+        const geometry = houseGeometry(1.8, 0.95, 0.5, 1.4);
+        addMesh(geometry, additive(0.07, 0.7));
+        addEdges(this.group, openHouseEdges(1.8, 0.95, 0.5, 1.4), color, {
           dashed: true,
           opacity: 0.95,
         });
-        labelHeight = 1.8;
+        labelHeight = 1.0;
         break;
       }
       case "interface": {
-        const ring = new THREE.Mesh(
-          new THREE.TorusGeometry(1.05, 0.17, 12, 42),
-          mental ? additive(0.5, 0.8) : solid(0.5, 0.35),
-        );
-        addMesh(ring.geometry, ring.material);
-        addEdges(this.group, new THREE.EdgesGeometry(ring.geometry), color, { opacity: 0.5 });
-        for (const x of [-0.75, 0.75]) {
-          const port = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.12, 0.12, 0.42, 8),
+        const geometry = hexRingGeometry(0.74, 0.44, 0.16);
+        addMesh(geometry, mental ? additive(0.55, 0.85) : solid(0.5, 0.35));
+        addEdges(this.group, new THREE.EdgesGeometry(geometry), color, { opacity: 0.6 });
+        for (const x of [-0.86, 0.86]) {
+          const port = addMesh(
+            new THREE.CylinderGeometry(0.1, 0.1, 0.3, 8),
             mental ? additive(0.7, 0.9) : solid(0.6, 0.3),
           );
           port.rotation.z = Math.PI / 2;
           port.position.set(x, 0, 0);
-          port.userData.elementId = element.id;
-          this.group.add(port);
-          this.meshes.push(port);
         }
-        labelHeight = 1.65;
+        labelHeight = 0.9;
         break;
       }
       case "component": {
-        const geometry = new THREE.BoxGeometry(4.2, 2.4, 4.2);
-        addMesh(geometry, additive(0.07, 0.5));
-        addEdges(this.group, new THREE.EdgesGeometry(geometry), color, {
-          dashed: true,
-          opacity: 0.65,
+        const base = new THREE.BoxGeometry(3.0, 0.1, 3.0);
+        addMesh(base, additive(0.1, 0.45), -0.62);
+        const baseEdges = addEdges(this.group, new THREE.EdgesGeometry(base), color, {
+          opacity: 0.55,
         });
-        labelHeight = 2.15;
+        baseEdges.position.y = -0.62;
+        const postGeometry = new THREE.BoxGeometry(0.09, 0.95, 0.09);
+        for (const x of [-1.4, 1.4]) {
+          for (const z of [-1.4, 1.4]) {
+            const post = addMesh(postGeometry, additive(0.35, 0.7), -0.14);
+            post.position.set(x, -0.14, z);
+          }
+        }
+        const rails = addEdges(
+          this.group,
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(2.8, 0.02, 2.8)),
+          color,
+          { dashed: true, opacity: 0.55 },
+        );
+        rails.position.y = 0.34;
+        labelHeight = 0.62;
         break;
       }
       case "concept": {
-        const geometry = new THREE.OctahedronGeometry(1.15, 0);
+        const geometry = new THREE.OctahedronGeometry(0.82, 0);
         addMesh(geometry, additive(0.2, 0.9));
         addEdges(this.group, new THREE.EdgesGeometry(geometry), color, { opacity: 0.95 });
-        const inner = new THREE.Mesh(
-          new THREE.IcosahedronGeometry(0.38, 0),
-          new THREE.MeshBasicMaterial({ color, wireframe: true, transparent: true, opacity: 0.7 }),
+        const inner = addMesh(
+          new THREE.IcosahedronGeometry(0.28, 0),
+          new THREE.MeshBasicMaterial({
+            color,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.7,
+          }),
         );
-        inner.userData.elementId = element.id;
-        this.group.add(inner);
-        this.meshes.push(inner);
-        labelHeight = 1.7;
+        inner.position.set(0, 0, 0);
+        labelHeight = 1.0;
         break;
       }
       case "object": {
-        const geometry = new THREE.BoxGeometry(2.2, 1.6, 2.2);
-        addMesh(geometry, solid(0.35, 0.42));
-        addEdges(this.group, new THREE.EdgesGeometry(geometry), 0x2a1a12, { opacity: 0.45 });
-        labelHeight = 1.8;
+        const body = new THREE.BoxGeometry(1.6, 0.9, 1.3);
+        addMesh(body, solid(0.35, 0.42), -0.15);
+        const bodyEdges = addEdges(this.group, new THREE.EdgesGeometry(body), 0x2a1a12, {
+          opacity: 0.45,
+        });
+        bodyEdges.position.y = -0.15;
+        const toothWidth = 1.6 / 3;
+        for (let index = 0; index < 3; index += 1) {
+          const tooth = addMesh(
+            sawtoothGeometry(toothWidth, 0.32, 1.2),
+            solid(0.35, 0.42),
+            0.3,
+          );
+          tooth.position.set(-0.8 + index * toothWidth, 0.3, 0);
+        }
+        const chimney = addMesh(
+          new THREE.CylinderGeometry(0.075, 0.09, 0.5, 10),
+          new THREE.MeshStandardMaterial({
+            color: 0x3a2418,
+            emissive: color,
+            emissiveIntensity: 0.15,
+            metalness: 0.4,
+            roughness: 0.5,
+          }),
+          0.55,
+        );
+        chimney.position.set(0.5, 0.55, -0.35);
+        labelHeight = 1.0;
         break;
       }
       case "resource": {
-        const body = new THREE.Mesh(
-          new THREE.CylinderGeometry(1.0, 1.0, 1.8, 22, 1),
+        const body = addMesh(
+          new THREE.CylinderGeometry(0.52, 0.52, 0.9, 22, 1),
           solid(0.45, 0.38),
+          -0.05,
         );
-        addMesh(body.geometry, body.material);
-        for (const y of [-0.58, 0.58]) {
-          const band = new THREE.Mesh(
-            new THREE.TorusGeometry(1.0, 0.045, 8, 32),
+        body.position.set(0, -0.05, 0);
+        const dome = addMesh(
+          new THREE.SphereGeometry(0.52, 20, 10),
+          solid(0.45, 0.38),
+          0.4,
+        );
+        dome.scale.y = 0.55;
+        dome.position.set(0, 0.4, 0);
+        for (const y of [-0.4, 0.05]) {
+          const band = addMesh(
+            new THREE.TorusGeometry(0.53, 0.035, 8, 32),
             new THREE.MeshBasicMaterial({ color: 0xffd0a2, transparent: true, opacity: 0.8 }),
           );
           band.rotation.x = Math.PI / 2;
-          band.position.y = y;
-          band.userData.elementId = element.id;
-          this.group.add(band);
-          this.meshes.push(band);
+          band.position.set(0, y, 0);
         }
-        labelHeight = 1.9;
+        const pipe = addMesh(
+          new THREE.CylinderGeometry(0.07, 0.07, 0.3, 8),
+          solid(0.5, 0.4),
+          -0.15,
+        );
+        pipe.rotation.z = Math.PI / 2;
+        pipe.position.set(0.6, -0.15, 0);
+        labelHeight = 0.92;
         break;
       }
       case "process": {
-        const geometry = new THREE.CylinderGeometry(0.9, 1.1, 1.5, 8);
-        addMesh(geometry, solid(0.3, 0.45));
-        addEdges(this.group, new THREE.EdgesGeometry(geometry), 0x2a1a12, { opacity: 0.5 });
-        labelHeight = 1.7;
+        const body = addMesh(
+          new THREE.CylinderGeometry(0.42, 0.5, 1.0, 8),
+          solid(0.3, 0.45),
+          -0.05,
+        );
+        body.position.set(0, -0.05, 0);
+        addEdges(this.group, new THREE.EdgesGeometry(body.geometry), 0x2a1a12, {
+          opacity: 0.5,
+        });
+        const cap = addMesh(
+          new THREE.ConeGeometry(0.42, 0.3, 8),
+          solid(0.3, 0.45),
+          0.62,
+        );
+        cap.position.set(0, 0.62, 0);
+        const band = addMesh(
+          new THREE.TorusGeometry(0.46, 0.035, 8, 32),
+          new THREE.MeshBasicMaterial({ color: 0xffe0a3, transparent: true, opacity: 0.85 }),
+        );
+        band.rotation.x = Math.PI / 2;
+        band.position.set(0, 0.18, 0);
+        labelHeight = 1.0;
         break;
       }
       case "stage": {
-        const geometry = new THREE.BoxGeometry(2.8, 0.44, 1.3);
-        addMesh(geometry, solid(0.25, 0.35), 0.1);
-        addEdges(this.group, new THREE.EdgesGeometry(geometry), 0x5a351d, { opacity: 0.6 });
-        const chevron = new THREE.ConeGeometry(0.13, 0.36, 3);
+        const base = new THREE.BoxGeometry(2.0, 0.16, 0.85);
+        addMesh(base, solid(0.25, 0.35), -0.24);
+        const baseEdges = addEdges(this.group, new THREE.EdgesGeometry(base), 0x5a351d, {
+          opacity: 0.6,
+        });
+        baseEdges.position.y = -0.24;
+        for (const z of [-0.44, 0.44]) {
+          const rail = addMesh(new THREE.BoxGeometry(2.0, 0.1, 0.06), solid(0.3, 0.4), -0.08);
+          rail.position.set(0, -0.08, z);
+        }
+        for (const x of [-0.6, 0, 0.6]) {
+          const roller = addMesh(
+            new THREE.CylinderGeometry(0.07, 0.07, 0.78, 10),
+            solid(0.35, 0.45),
+            -0.06,
+          );
+          roller.rotation.x = Math.PI / 2;
+          roller.position.set(x, -0.06, 0);
+        }
+        const chevron = new THREE.ConeGeometry(0.11, 0.3, 3);
         const chevronMaterial = new THREE.MeshBasicMaterial({
           color: 0xffe0a3,
           transparent: true,
           opacity: 0.9,
         });
-        for (const x of [-0.75, 0, 0.75]) {
-          const mesh = new THREE.Mesh(chevron.clone(), chevronMaterial);
+        for (const x of [-0.6, 0, 0.6]) {
+          const mesh = addMesh(chevron.clone(), chevronMaterial, 0.16);
           mesh.rotation.z = -Math.PI / 2;
-          mesh.position.set(x, 0.42, 0);
-          mesh.userData.elementId = element.id;
-          this.group.add(mesh);
-          this.meshes.push(mesh);
+          mesh.position.set(x, 0.16, 0);
         }
-        labelHeight = 1.2;
+        labelHeight = 0.7;
         break;
       }
       case "command": {
-        const geometry = new THREE.BoxGeometry(1.4, 0.2, 1.0);
-        addMesh(geometry, solid(0.2, 0.3), 0.3);
-        addEdges(this.group, new THREE.EdgesGeometry(geometry), 0xfff0c8, { opacity: 0.9 });
-        labelHeight = 1.25;
+        const plate = addMesh(new THREE.BoxGeometry(0.9, 0.06, 0.62), solid(0.2, 0.3), 0.04);
+        plate.position.set(0, 0.04, 0);
+        addEdges(this.group, new THREE.EdgesGeometry(plate.geometry), 0xfff0c8, {
+          opacity: 0.9,
+        });
+        const paper = addMesh(new THREE.BoxGeometry(0.76, 0.02, 0.5), solid(0.1, 0.5), 0.09);
+        paper.position.set(0, 0.09, 0);
+        const clip = addMesh(new THREE.BoxGeometry(0.2, 0.09, 0.12), solid(0.45, 0.35), 0.11);
+        clip.position.set(0, 0.11, -0.26);
+        labelHeight = 0.7;
         break;
       }
       case "actor": {
-        const base = new THREE.Mesh(
-          new THREE.CylinderGeometry(1.15, 1.35, 0.42, 20),
+        const base = addMesh(
+          new THREE.CylinderGeometry(0.72, 0.92, 0.26, 20),
           solid(0.4, 0.5),
+          -0.45,
         );
-        addMesh(base.geometry, base.material, 0.1);
-        const screen = new THREE.Mesh(
-          new THREE.BoxGeometry(1.25, 0.82, 0.12),
+        base.position.set(0, -0.45, 0);
+        const column = addMesh(new THREE.BoxGeometry(0.3, 0.5, 0.28), solid(0.4, 0.45), -0.13);
+        column.position.set(0, -0.13, 0);
+        const screen = addMesh(
+          new THREE.BoxGeometry(0.9, 0.55, 0.07),
           new THREE.MeshStandardMaterial({
             color: 0x16121b,
             emissive: color,
@@ -283,19 +451,18 @@ export class ElementVisual {
             metalness: 0.4,
             roughness: 0.3,
           }),
+          0.36,
         );
-        screen.position.set(0, 0.86, 0);
-        screen.rotation.x = -0.18;
-        screen.userData.elementId = element.id;
-        this.group.add(screen);
-        this.meshes.push(screen);
-        labelHeight = 1.7;
+        screen.rotation.x = -0.2;
+        screen.position.set(0, 0.36, 0);
+        labelHeight = 0.86;
         break;
       }
       default: {
-        const geometry = new THREE.BoxGeometry(1.4, 1.4, 1.4);
+        const geometry = new THREE.BoxGeometry(1.1, 1.1, 1.1);
         addMesh(geometry, mental ? additive(0.2, 0.5) : solid(0.3, 0.5));
         addEdges(this.group, new THREE.EdgesGeometry(geometry), color);
+        labelHeight = 0.9;
       }
     }
 
@@ -306,9 +473,9 @@ export class ElementVisual {
       depthWrite: false,
       side: THREE.DoubleSide,
     });
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(1.45, 36), discMaterial);
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(1.25, 36), discMaterial);
     disc.rotation.x = -Math.PI / 2;
-    disc.position.y = -0.9;
+    disc.position.y = -0.78;
     disc.renderOrder = -1;
     this.group.add(disc);
 
@@ -320,11 +487,11 @@ export class ElementVisual {
       side: THREE.DoubleSide,
     });
     this.selectionRing = new THREE.Mesh(
-      new THREE.RingGeometry(1.35, 1.55, 48),
+      new THREE.RingGeometry(1.05, 1.22, 48),
       this.selectionMaterial,
     );
     this.selectionRing.rotation.x = -Math.PI / 2;
-    this.selectionRing.position.y = -0.88;
+    this.selectionRing.position.y = -0.76;
     this.selectionRing.renderOrder = 2;
     this.group.add(this.selectionRing);
 
@@ -352,7 +519,7 @@ export class ElementVisual {
     this.label = new CSS2DObject(this.labelElement);
     if (element.kind === "stage" || element.kind === "command") {
       this.label.center.set(0.5, 0);
-      this.label.position.set(0, -0.85, 0);
+      this.label.position.set(0, -0.58, 0);
     } else {
       this.label.center.set(0.5, 1);
       this.label.position.set(0, labelHeight, 0);

@@ -74,6 +74,7 @@ make validate   # JSON + schema + семантика + ссылки
 make links      # только ссылки
 make fmt        # форматирование JSON (если настроено)
 make viewer-build  # типы + production-сборка вьюера
+make viewer-test   # unit-тесты вьюера
 ```
 
 Вручную:
@@ -160,6 +161,7 @@ cd viewer && npm ci && npm run build
 
 - [ ] `make validate` проходит;
 - [ ] `npm run build` в `viewer/` проходит, если менялся `viewer/src`;
+- [ ] `npm test` в `viewer/` проходит, если менялась логика заметок;
 - [ ] обновлены спецификация и схема (если менялся формат);
 - [ ] обновлён пример или добавлен новый;
 - [ ] обновлён `CHANGELOG.md` при изменении поведения;

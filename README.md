@@ -19,7 +19,7 @@ UMLG — экспериментальный визуальный язык арх
 - JSON-схемы — [`schema/`](schema/);
 - пример `Hello Triangle` — [`examples/hello-triangle/`](examples/hello-triangle/);
 - семантический валидатор — [`tools/validate.py`](tools/validate.py);
-- web-вьюер V0–V2 — [`viewer/`](viewer/README.md): M/R-миры, инспектор, фазовый переход, non-3D список;
+- web-вьюер V0–V2 — [`viewer/`](viewer/README.md): M/R-миры, узнаваемые силуэты видов, инспектор, заметки, фазовый переход, non-3D список;
 - Topic Card для курса — [`course/hello-triangle.md`](course/hello-triangle.md);
 - матрица курса — [`course/README.md`](course/README.md);
 - заметки по вьюеру — [`viewer/README.md`](viewer/README.md).

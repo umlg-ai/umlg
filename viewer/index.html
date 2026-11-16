@@ -48,6 +48,22 @@
           <input id="element-filter" type="search" placeholder="Фильтр: Shader, VBO…" autocomplete="off" />
         </label>
         <div class="element-list" id="element-list" role="list"></div>
+        <div class="notes-tools" aria-label="Заметки">
+          <span class="notes-count" id="notes-count">0 заметок</span>
+          <button class="text-button" id="notes-export" type="button" title="Скачать заметки в JSON">
+            Экспорт
+          </button>
+          <button class="text-button" id="notes-import" type="button" title="Загрузить заметки из JSON">
+            Импорт
+          </button>
+          <input
+            id="notes-import-file"
+            type="file"
+            accept="application/json,.json"
+            aria-label="Файл заметок"
+            hidden
+          />
+        </div>
         <p class="panel-note">Это non-3D путь: те же данные доступны без камеры и анимации.</p>
       </aside>
 

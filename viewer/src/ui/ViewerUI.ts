@@ -1,4 +1,5 @@
 import { ModelGraph } from "../core/model";
+import { formatNotesCount } from "../core/notes";
 import type { Element, Link, Member, Relation, WorldId } from "../core/types";
 import type { TransitionInfo } from "../transition/TransitionController";
 
@@ -15,6 +16,12 @@ export interface ViewerUIOptions {
   onResetCamera: () => void;
   onTwin: (id: string) => void;
   onClearSelection: () => void;
+  getNote: (elementId: string) => string;
+  /** Returns false when the browser refused to persist the note. */
+  onNoteChange: (elementId: string, text: string) => boolean;
+  getNoteCount: () => number;
+  onExportNotes: () => void;
+  onImportNotes: (file: File) => void;
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -62,6 +69,10 @@ export class ViewerUI {
     density: document.querySelector<HTMLInputElement>("#density")!,
     reducedMotion: document.querySelector<HTMLInputElement>("#reduced-motion")!,
     resetCamera: document.querySelector<HTMLButtonElement>("#reset-camera")!,
+    notesCount: document.querySelector<HTMLElement>("#notes-count")!,
+    notesExport: document.querySelector<HTMLButtonElement>("#notes-export")!,
+    notesImport: document.querySelector<HTMLButtonElement>("#notes-import")!,
+    notesImportFile: document.querySelector<HTMLInputElement>("#notes-import-file")!,
     toast: document.querySelector<HTMLElement>("#toast")!,
     loading: document.querySelector<HTMLElement>("#loading")!,
     loadingText: document.querySelector<HTMLElement>("#loading-text")!,
@@ -75,6 +86,9 @@ export class ViewerUI {
   private world: WorldId = "M";
   private selectedId: string | null = null;
   private toastTimer = 0;
+  private noteEditor?: HTMLTextAreaElement;
+  private noteMeta?: HTMLElement;
+  private noteMetaId: string | null = null;
 
   constructor(options: ViewerUIOptions) {
     this.options = options;
@@ -206,6 +220,27 @@ export class ViewerUI {
     });
     this.elements.resetCamera.addEventListener("click", () => this.options.onResetCamera());
     this.elements.clearSelection.addEventListener("click", () => this.options.onClearSelection());
+
+    this.elements.notesExport.addEventListener("click", () => this.options.onExportNotes());
+    this.elements.notesImport.addEventListener("click", () => this.elements.notesImportFile.click());
+    this.elements.notesImportFile.addEventListener("change", () => {
+      const file = this.elements.notesImportFile.files?.[0];
+      this.elements.notesImportFile.value = "";
+      if (file) this.options.onImportNotes(file);
+    });
+  }
+
+  /** Re-reads note marks after an import or a model change without rebuilding the inspector. */
+  refreshNotes(reloadEditor = false): void {
+    this.updateNotesCount();
+    for (const row of this.elements.elementList.querySelectorAll<HTMLElement>(".element-row")) {
+      const id = row.dataset.id;
+      if (id) this.applyNoteMark(row, Boolean(this.options.getNote(id)));
+    }
+    if (this.noteEditor && this.selectedId) {
+      if (reloadEditor) this.noteEditor.value = this.options.getNote(this.selectedId);
+      this.updateNoteMeta(this.selectedId, true);
+    }
   }
 
   private renderList(): void {
@@ -235,18 +270,45 @@ export class ViewerUI {
       row.dataset.id = item.id;
       row.dataset.world = item.world;
       row.classList.toggle("selected", item.id === this.selectedId);
+      const note = this.options.getNote(item.id);
       row.append(
         element("span", "row-world", item.world),
         element("span", "row-name", item.name),
         element("span", "row-kind", item.kind),
+        element("span", "row-note", note ? "✎" : ""),
       );
+      this.applyNoteMark(row, Boolean(note));
       row.addEventListener("click", () => this.options.onSelect(item.id));
       this.elements.elementList.append(row);
     }
+
+    this.updateNotesCount();
+  }
+
+  private applyNoteMark(row: HTMLElement, hasNote: boolean): void {
+    row.classList.toggle("has-note", hasNote);
+    const badge = row.querySelector<HTMLElement>(".row-note");
+    if (!badge) return;
+    badge.textContent = hasNote ? "✎" : "";
+    badge.title = hasNote ? "есть заметка" : "";
+    if (hasNote) {
+      badge.setAttribute("aria-label", "есть заметка");
+    } else {
+      badge.removeAttribute("aria-label");
+    }
+  }
+
+  private updateNotesCount(): void {
+    const count = this.options.getNoteCount();
+    this.elements.notesCount.textContent = formatNotesCount(count);
+    this.elements.notesCount.title = "Заметки хранятся в этом браузере и не входят в модель";
   }
 
   private renderInspector(): void {
     this.elements.inspector.replaceChildren();
+    this.noteEditor = undefined;
+    this.noteMeta = undefined;
+    this.noteMetaId = null;
     const item = this.graph?.element(this.selectedId);
     if (!item || !this.graph) {
       this.elements.inspectorSubtitle.textContent = "ничего не выбрано";
@@ -283,6 +345,8 @@ export class ViewerUI {
       for (const tag of item.tags) tags.append(element("span", "tag", tag));
       this.elements.inspector.append(tags);
     }
+
+    this.appendNoteSection(item);
 
     const twin = this.graph.twin(item.id);
     if (twin) {
@@ -362,6 +426,56 @@ export class ViewerUI {
       section.append(list);
       this.elements.inspector.append(section);
     }
+  }
+
+  private appendNoteSection(item: Element): void {
+    const section = element("section", "section note-section");
+    section.append(element("h4", "", "Заметка"));
+
+    const editor = element("textarea", "note-editor");
+    editor.rows = 4;
+    editor.placeholder = "Что проверить, с чем сверить, что непонятно…";
+    editor.value = this.options.getNote(item.id);
+    editor.setAttribute("aria-label", `Заметка к элементу ${item.name}`);
+    editor.addEventListener("input", () => {
+      const persisted = this.options.onNoteChange(item.id, editor.value);
+      const hasNote = Boolean(editor.value.trim());
+      this.syncNoteMark(item.id, hasNote);
+      this.updateNoteMeta(item.id, persisted);
+    });
+    section.append(editor);
+
+    const meta = element("p", "note-meta");
+    section.append(meta);
+
+    this.noteEditor = editor;
+    this.noteMeta = meta;
+    this.noteMetaId = item.id;
+    this.updateNoteMeta(item.id, true);
+    this.elements.inspector.append(section);
+  }
+
+  private syncNoteMark(id: string, hasNote: boolean): void {
+    for (const row of this.elements.elementList.querySelectorAll<HTMLElement>(".element-row")) {
+      if (row.dataset.id !== id) continue;
+      this.applyNoteMark(row, hasNote);
+      break;
+    }
+    this.updateNotesCount();
+  }
+
+  private updateNoteMeta(id: string, persisted: boolean): void {
+    if (!this.noteMeta || this.noteMetaId !== id) return;
+    if (!persisted) {
+      this.noteMeta.dataset.state = "error";
+      this.noteMeta.textContent = `Не удалось сохранить: браузер блокирует localStorage.`;
+      return;
+    }
+    const hasNote = Boolean(this.options.getNote(id));
+    this.noteMeta.dataset.state = hasNote ? "saved" : "empty";
+    this.noteMeta.textContent = hasNote
+      ? "Сохранено локально · не входит в model.json."
+      : "Хранится только в этом браузере, не входит в модель.";
   }
 
   private relationRow(relation: Relation): HTMLElement {

@@ -1,4 +1,4 @@
-.PHONY: validate json schema semantics links test fmt help viewer viewer-build
+.PHONY: validate json schema semantics links test fmt help viewer viewer-build viewer-test
 
 PYTHON ?= python3
 AJV ?= npx --yes ajv-cli@5
@@ -13,6 +13,7 @@ help:
 	@echo "make fmt          — reformat JSON files with python"
 	@echo "make viewer       — start the web viewer dev server"
 	@echo "make viewer-build — type-check and build the web viewer"
+	@echo "make viewer-test  — unit tests for the web viewer"
 
 validate: json schema semantics test links
 
@@ -52,6 +53,9 @@ viewer:
 
 viewer-build:
 	cd viewer && npm run build
+
+viewer-test:
+	cd viewer && npm test
 
 fmt:
 	@$(PYTHON) - <<'PY'

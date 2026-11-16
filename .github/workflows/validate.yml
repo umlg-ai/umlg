@@ -40,3 +40,7 @@ jobs:
       - name: Type-check and build viewer
         working-directory: viewer
         run: npm run build
+
+      - name: Test viewer
+        working-directory: viewer
+        run: npm test

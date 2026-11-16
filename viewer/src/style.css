@@ -353,7 +353,7 @@ button {
 
 .element-row {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) auto;
+  grid-template-columns: 18px minmax(0, 1fr) auto 14px;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -399,6 +399,38 @@ button {
   color: var(--faint);
   font-family: var(--mono);
   font-size: 9px;
+}
+
+.element-row .row-note {
+  color: var(--accent);
+  font-size: 10px;
+  line-height: 1;
+  text-align: center;
+}
+
+.element-row.has-note .row-name {
+  color: var(--text);
+}
+
+.notes-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.notes-count {
+  margin-right: auto;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.03em;
+}
+
+.notes-tools .text-button {
+  padding: 5px 8px;
 }
 
 .panel-note {
@@ -480,6 +512,45 @@ button {
   color: var(--muted);
   font-family: var(--mono);
   font-size: 9px;
+}
+
+.note-section .note-editor {
+  display: block;
+  width: 100%;
+  min-height: 84px;
+  resize: vertical;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.note-section .note-editor:focus {
+  border-color: var(--accent);
+}
+
+.note-section .note-editor::placeholder {
+  color: var(--faint);
+}
+
+.note-meta {
+  margin: 6px 0 0;
+  color: var(--faint);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.note-meta[data-state="saved"] {
+  color: var(--ok);
+}
+
+.note-meta[data-state="error"] {
+  color: var(--danger);
 }
 
 .section {

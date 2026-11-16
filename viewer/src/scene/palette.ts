@@ -33,18 +33,23 @@ export const WORLD_THEME = {
   },
 } as const;
 
+// Colour belongs to the world, not to the element kind. Slight tonal variation
+// keeps depth readable, but the silhouette is what identifies the type.
+const MENTAL = 0x8cc8ff;
+const REAL = 0xffb168;
+
 export const ELEMENT_COLORS: Record<ElementKind, number> = {
-  class: 0x74c7ff,
-  abstractClass: 0xa99bff,
-  interface: 0x63e6d5,
-  component: 0x6ea8ff,
-  concept: 0xc7a6ff,
-  object: 0xffb168,
-  resource: 0xff8f55,
-  process: 0xffd166,
-  stage: 0xffd166,
-  command: 0xffe0a3,
-  actor: 0xff6b9a,
+  class: MENTAL,
+  abstractClass: MENTAL,
+  interface: MENTAL,
+  component: MENTAL,
+  concept: MENTAL,
+  object: REAL,
+  resource: REAL,
+  process: REAL,
+  stage: REAL,
+  command: REAL,
+  actor: REAL,
 };
 
 export const RELATION_COLORS: Record<RelationKind, number> = {

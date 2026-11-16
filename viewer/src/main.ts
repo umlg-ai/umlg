@@ -1,12 +1,26 @@
 import { ModelGraph } from "./core/model";
 import { loadModelFromUrl, ModelLoadError } from "./core/load";
+import { formatNotesCount } from "./core/notes";
 import type { WorldId } from "./core/types";
 import { SceneManager } from "./scene/SceneManager";
 import { TransitionController } from "./transition/TransitionController";
+import { NotesStore } from "./ui/NotesStore";
 import { ViewerUI, type ReadingMode } from "./ui/ViewerUI";
 
 function otherWorld(world: WorldId): WorldId {
   return world === "M" ? "R" : "M";
+}
+
+function safeStorage(): Storage | null {
+  try {
+    const storage = window.localStorage;
+    const probe = "umlg:storage-probe";
+    storage.setItem(probe, "1");
+    storage.removeItem(probe);
+    return storage;
+  } catch {
+    return null;
+  }
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -33,6 +47,8 @@ async function main(): Promise<void> {
   let reducedMotion = reducedMotionQuery.matches;
   let mode: ReadingMode = "story";
   let graph: ModelGraph | undefined;
+  const notes = new NotesStore(safeStorage());
+  let storageWarned = false;
 
   const scene = new SceneManager(container, labelLayer);
 
@@ -79,7 +95,59 @@ async function main(): Promise<void> {
       transition.start({ targetId: id, targetWorld: target.world });
     },
     onClearSelection: () => scene.clearSelection(),
+    getNote: (id) => notes.get(id),
+    onNoteChange: (id, text) => {
+      const persisted = notes.set(id, text);
+      if (!persisted && !storageWarned) {
+        storageWarned = true;
+        ui.toast("Заметки не сохраняются: браузер блокирует localStorage.", "error");
+      }
+      return persisted;
+    },
+    getNoteCount: () => notes.size,
+    onExportNotes: () => exportNotes(),
+    onImportNotes: (file) => void importNotes(file),
   });
+
+  const exportNotes = (): void => {
+    const payload = JSON.stringify(notes.exportDocument(), null, 2);
+    const blob = new Blob([payload], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const modelSlug = (notes.activeModelId || "model").replace(/[^a-zA-Z0-9._-]+/g, "-");
+    link.href = url;
+    link.download = `${modelSlug}-notes.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    ui.toast(
+      notes.size > 0
+        ? `Экспортировано: ${formatNotesCount(notes.size)}`
+        : "Заметок нет — экспортирован пустой файл",
+    );
+  };
+
+  const importNotes = async (file: File): Promise<void> => {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(await file.text()) as unknown;
+    } catch {
+      ui.toast("Файл заметок не похож на JSON.", "error");
+      return;
+    }
+    const result = notes.importDocument(raw);
+    if ("error" in result) {
+      ui.toast(result.error, "error");
+      return;
+    }
+    ui.refreshNotes(true);
+    if (!result.persisted) {
+      ui.toast("Заметки импортированы, но браузер не дал их сохранить.", "error");
+      return;
+    }
+    ui.toast(`Импортировано: ${result.imported} · всего ${formatNotesCount(result.total)}`);
+  };
 
   const transition = new TransitionController({
     getWorld: () => scene.world,
@@ -135,8 +203,10 @@ async function main(): Promise<void> {
     ui.setLoading(true, "Загружаю модель и проверяю инварианты…");
     const loaded = await loadModelFromUrl();
     graph = new ModelGraph(loaded.model);
+    notes.load(loaded.model.id);
     scene.setData(loaded.model, loaded.layout);
     ui.setModel(graph, "M");
+    ui.refreshNotes();
     ui.setLoading(false);
     ui.setWorld("M");
     scene.setDensity(ui.densityValue);
