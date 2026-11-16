@@ -32,7 +32,7 @@
 
 ## Viewer
 
-- [viewer/README.md](viewer/README.md): web-вьюер V0–V2, силуэты видов, заметки, запуск и архитектура.
+- [viewer/README.md](viewer/README.md): web-вьюер V0–V2, силуэты видов, макеты R-двойников, заметки, запуск и архитектура.
 - [viewer/src/main.ts](viewer/src/main.ts): связывание core, scene, transition, notes и ui.
 - [viewer/screenshots/](viewer/screenshots/): M-мир, R-мир, Architecture-режим, заметки.
 

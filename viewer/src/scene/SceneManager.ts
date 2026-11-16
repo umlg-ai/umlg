@@ -182,6 +182,7 @@ export class SceneManager {
         position,
         density: this.density,
         onSelect: (id) => this.select(id, false),
+        previewKinds: this.graph.previewKinds(element.id),
       });
       group.add(visual.group);
       visual.setLabelVisible(this.architectureMode);

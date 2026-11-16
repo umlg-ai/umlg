@@ -1,4 +1,4 @@
-import type { Element, Link, Relation, UmlgModel, WorldId } from "./types";
+import type { Element, ElementKind, Link, Relation, UmlgModel, WorldId } from "./types";
 
 export interface Twin {
   element: Element;
@@ -58,5 +58,49 @@ export class ModelGraph {
 
   twinWorld(id: string): WorldId | undefined {
     return this.twin(id)?.element.world;
+  }
+
+  /** Kinds of the R entities created directly by an M element. */
+  materializedKinds(id: string): ElementKind[] {
+    return this.links
+      .filter((link) => link.kind === "materializes" && link.from === id)
+      .map((link) => this.elements.get(link.to)?.kind)
+      .filter((kind): kind is ElementKind => kind !== undefined);
+  }
+
+  /**
+   * Forms previewed inside an M class or component. A class previews the
+   * silhouettes of its materialized twins; a component previews deployed
+   * processes or the twins of its composed parts. Presentation code only
+   * consumes this list, so layout cannot change what the blueprint promises.
+   */
+  previewKinds(id: string): ElementKind[] {
+    const element = this.element(id);
+    if (!element || element.world !== "M") return [];
+    if (element.kind !== "class" && element.kind !== "component") return [];
+
+    const materialized = this.materializedKinds(id);
+    if (materialized.length > 0) return materialized;
+    if (element.kind !== "component") return [];
+
+    const deployed = this.links
+      .filter((link) => link.kind === "deploys" && link.from === id)
+      .map((link) => this.elements.get(link.to)?.kind)
+      .filter((kind): kind is ElementKind => kind !== undefined);
+    if (deployed.length > 0) return deployed;
+
+    const parts = this.relations
+      .filter(
+        (relation) =>
+          relation.world === "M" &&
+          relation.from === id &&
+          (relation.kind === "composition" || relation.kind === "aggregation"),
+      )
+      .map((relation) => relation.to);
+
+    return this.links
+      .filter((link) => link.kind === "materializes" && parts.includes(link.from))
+      .map((link) => this.elements.get(link.to)?.kind)
+      .filter((kind): kind is ElementKind => kind !== undefined);
   }
 }
