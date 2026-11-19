@@ -72,7 +72,7 @@ UMLG — визуальный язык архитектуры с двумя он
 ```bash
 make validate   # JSON + schema + семантика + ссылки
 make links      # только ссылки
-make fmt        # форматирование JSON (если настроено)
+make fmt        # форматирование JSON в examples/ и schema/
 make viewer-build  # типы + production-сборка вьюера
 make viewer-test   # unit-тесты вьюера
 ```

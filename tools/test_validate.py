@@ -121,6 +121,20 @@ class ValidatorTests(unittest.TestCase):
             any("implements target must be an interface" in e for e in errors(data))
         )
 
+    def test_worlds_must_be_unique_and_typed(self) -> None:
+        data = {
+            "id": "test",
+            "worlds": [
+                {"id": "M", "name": "M", "kind": "real"},
+                {"id": "M", "name": "M again", "kind": "mental"},
+            ],
+            "elements": [],
+        }
+        result = errors(data)
+        self.assertTrue(any("duplicate world id" in e for e in result))
+        self.assertTrue(any("world M must have kind 'mental'" in e for e in result))
+        self.assertTrue(any("missing required world: R" in e for e in result))
+
     def test_duplicate_member_id_is_error(self) -> None:
         data = model(
             [

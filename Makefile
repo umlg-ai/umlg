@@ -60,10 +60,10 @@ viewer-test:
 fmt:
 	@$(PYTHON) - <<'PY'
 	import json, pathlib
-	for path in sorted(pathlib.Path(".").rglob("*.json")):
-	    if "node_modules" in path.parts:
-	        continue
-	    data = json.loads(path.read_text(encoding="utf-8"))
-	    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-	    print(f"formatted {path}")
+	roots = [pathlib.Path("examples"), pathlib.Path("schema")]
+	for root in roots:
+	    for path in sorted(root.rglob("*.json")):
+	        data = json.loads(path.read_text(encoding="utf-8"))
+	        path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+	        print(f"formatted {path}")
 	PY

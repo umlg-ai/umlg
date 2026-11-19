@@ -98,6 +98,24 @@ def validate_model(model: dict, report: Report) -> dict[str, dict]:
         if register(link, "link"):
             by_id[link["id"]] = link
 
+    # Worlds: v0.1 allows exactly M and R, each declared once.
+    worlds = model.get("worlds")
+    if worlds is not None:
+        seen_worlds: set[str] = set()
+        for world in worlds:
+            world_id = world.get("id")
+            if world_id in seen_worlds:
+                report.error(f"duplicate world id: {world_id}")
+            seen_worlds.add(world_id)
+            kind = world.get("kind")
+            if world_id == "M" and kind != "mental":
+                report.error(f"world M must have kind 'mental', got '{kind}'")
+            if world_id == "R" and kind != "real":
+                report.error(f"world R must have kind 'real', got '{kind}'")
+        for required in ("M", "R"):
+            if required not in seen_worlds:
+                report.error(f"missing required world: {required}")
+
     # Model-level optional fields.
     viewpoints = model.get("viewpoints")
     if viewpoints is not None:

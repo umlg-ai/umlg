@@ -70,7 +70,7 @@
       "properties": {
         "id": { "$ref": "#/$defs/worldId" },
         "name": { "type": "string", "minLength": 1 },
-        "kind": { "type": "string", "enum": ["mental", "real", "symbolic", "physical"] },
+        "kind": { "type": "string", "enum": ["mental", "real"] },
         "description": { "type": "string" }
       }
     },
