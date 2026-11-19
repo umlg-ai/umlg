@@ -1,5 +1,11 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { ModelGraph } from "../core/model";
 import type {
@@ -23,6 +29,8 @@ export class SceneManager {
   private readonly scene: THREE.Scene;
   private readonly camera: THREE.PerspectiveCamera;
   private readonly renderer: THREE.WebGLRenderer;
+  private readonly composer: EffectComposer;
+  private readonly bloomPass: UnrealBloomPass;
   private readonly labelRenderer: CSS2DRenderer;
   private readonly controls: OrbitControls;
   private readonly grid: THREE.GridHelper;
@@ -45,6 +53,7 @@ export class SceneManager {
   private density = 0.7;
   private architectureMode = false;
   private cameraInitialized = false;
+  private readonly backgrounds = new Map<WorldId, THREE.Texture>();
 
   onSelect?: (id: string) => void;
   onWorldChange?: (world: WorldId) => void;
@@ -63,8 +72,19 @@ export class SceneManager {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 0.92;
     this.renderer.setClearColor(0x050814, 1);
     container.appendChild(this.renderer.domElement);
+
+    // One neutral studio environment gives PBR materials real reflections;
+    // the world theme tints the lights, not the environment map.
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    const environmentScene = new RoomEnvironment();
+    this.scene.environment = pmrem.fromScene(environmentScene, 0.04).texture;
+    this.scene.environmentIntensity = 0.35;
+    environmentScene.dispose();
+    pmrem.dispose();
 
     this.labelRenderer = new CSS2DRenderer();
     this.labelRenderer.domElement.style.position = "absolute";
@@ -93,13 +113,16 @@ export class SceneManager {
     this.keyLight.shadow.camera.right = 45;
     this.keyLight.shadow.camera.top = 45;
     this.keyLight.shadow.camera.bottom = -45;
+    this.keyLight.shadow.bias = -0.0004;
+    this.keyLight.shadow.normalBias = 0.02;
+    this.keyLight.shadow.radius = 3;
     this.scene.add(this.keyLight);
 
-    this.rimLight = new THREE.PointLight(0x5f7cff, 30, 90, 2);
-    this.rimLight.position.set(-14, 10, -18);
+    this.rimLight = new THREE.PointLight(0x5f7cff, 380, 120, 2);
+    this.rimLight.position.set(-18, 16, -24);
     this.scene.add(this.rimLight);
 
-    this.selectionLight = new THREE.PointLight(0x9fd4ff, 0, 8, 2);
+    this.selectionLight = new THREE.PointLight(0x9fd4ff, 0, 7, 2);
     this.selectionLight.position.set(0, 1.0, 0);
     this.scene.add(this.selectionLight);
 
@@ -108,19 +131,39 @@ export class SceneManager {
     this.scene.add(this.grid);
 
     this.floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(180, 180),
+      new THREE.PlaneGeometry(620, 620),
       new THREE.MeshStandardMaterial({
         color: 0x060912,
-        roughness: 1,
-        metalness: 0,
+        roughness: 0.62,
+        metalness: 0.35,
         transparent: true,
-        opacity: 0.55,
+        opacity: 0.72,
       }),
     );
     this.floor.rotation.x = -Math.PI / 2;
     this.floor.position.y = -1.02;
     this.floor.receiveShadow = true;
     this.scene.add(this.floor);
+
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    const gtao = new GTAOPass(this.scene, this.camera);
+    gtao.blendIntensity = 0.75;
+    gtao.updateGtaoMaterial({
+      radius: 0.9,
+      distanceExponent: 1.4,
+      thickness: 1.2,
+      scale: 1.0,
+    });
+    this.composer.addPass(gtao);
+    this.bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(1, 1),
+      0.32,
+      0.45,
+      1.0,
+    );
+    this.composer.addPass(this.bloomPass);
+    this.composer.addPass(new OutputPass());
 
     this.bindPointerEvents();
     this.resize();
@@ -231,7 +274,7 @@ export class SceneManager {
     visual.setSelected(true);
     this.selectionLight.position.copy(visual.basePosition).add(new THREE.Vector3(0, 1.0, 0));
     this.selectionLight.color.set(this.currentWorld === "M" ? 0x9fd4ff : 0xffb168);
-    this.selectionLight.intensity = this.currentWorld === "M" ? 4 : 5;
+    this.selectionLight.intensity = this.currentWorld === "M" ? 3.5 : 4.5;
     for (const relation of this.relationVisuals) {
       relation.setHighlighted(relation.connect(id));
     }
@@ -327,7 +370,7 @@ export class SceneManager {
     for (const relation of this.relationVisuals) {
       relation.animate(now);
     }
-    this.renderer.render(this.scene, this.camera);
+    this.composer.render();
     this.labelRenderer.render(this.scene, this.camera);
   }
 
@@ -386,15 +429,18 @@ export class SceneManager {
 
   private applyTheme(world: WorldId): void {
     const theme = WORLD_THEME[world];
-    this.scene.background = new THREE.Color(theme.background);
+    this.scene.background = this.backgroundTexture(world);
     this.scene.fog = new THREE.Fog(theme.fog, 60, 210);
     this.renderer.setClearColor(theme.background, 1);
 
     this.ambient.color.set(theme.light);
     this.ambient.groundColor.set(world === "M" ? 0x111427 : 0x1f1008);
+    this.ambient.intensity = world === "M" ? 0.95 : 0.8;
     this.keyLight.color.set(world === "M" ? 0xd6ebff : 0xffd9b8);
-    this.rimLight.color.set(theme.warm);
-    this.rimLight.intensity = world === "M" ? 26 : 20;
+    this.keyLight.intensity = world === "M" ? 1.9 : 2.1;
+    this.rimLight.color.set(world === "M" ? theme.warm : 0x5d7dff);
+    this.rimLight.intensity = world === "M" ? 380 : 340;
+    this.scene.environmentIntensity = world === "M" ? 0.26 : 0.42;
 
     const gridMaterials = Array.isArray(this.grid.material)
       ? this.grid.material
@@ -412,6 +458,34 @@ export class SceneManager {
       floorMaterial.color.set(theme.background);
       floorMaterial.opacity = world === "M" ? 0.35 : 0.72;
     }
+  }
+
+  private backgroundTexture(world: WorldId): THREE.Texture {
+    const cached = this.backgrounds.get(world);
+    if (cached) return cached;
+
+    const theme = WORLD_THEME[world];
+    const canvas = document.createElement("canvas");
+    canvas.width = 4;
+    canvas.height = 512;
+    const context = canvas.getContext("2d");
+    if (context) {
+      const base = new THREE.Color(theme.background);
+      const top = base.clone().lerp(new THREE.Color(theme.light), 0.14);
+      const bottom = base.clone().multiplyScalar(0.45);
+      const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, `#${top.getHexString()}`);
+      gradient.addColorStop(0.58, `#${base.getHexString()}`);
+      gradient.addColorStop(1, `#${bottom.getHexString()}`);
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+    this.backgrounds.set(world, texture);
+    return texture;
   }
 
   private disposeWorldGroup(): void {
@@ -433,6 +507,8 @@ export class SceneManager {
     this.camera.aspect = width / Math.max(1, height);
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height, false);
+    this.composer.setSize(width, height);
+    this.bloomPass.setSize(width, height);
     this.labelRenderer.setSize(width, height);
   }
 }

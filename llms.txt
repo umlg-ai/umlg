@@ -13,7 +13,7 @@
 ## Spec
 
 - [spec/02-viewpoints.md](spec/02-viewpoints.md): viewpoint-контракты.
-- [spec/03-visual-grammar.md](spec/03-visual-grammar.md): цех, призрак, NPC, LOD.
+- [spec/03-visual-grammar.md](spec/03-visual-grammar.md): чертёж ↔ материализованный модуль, силуэты видов, призрак, NPC, LOD.
 - [spec/04-transitions.md](spec/04-transitions.md): фазы, ввод, эффекты, доступность.
 - [spec/05-serialization.md](spec/05-serialization.md): `model.json`, `layout.json`, ID.
 
@@ -32,7 +32,7 @@
 
 ## Viewer
 
-- [viewer/README.md](viewer/README.md): web-вьюер V0–V2, силуэты видов, макеты R-двойников, заметки, запуск и архитектура.
+- [viewer/README.md](viewer/README.md): web-вьюер V0–V2, силуэты видов, макеты R-двойников, PBR-рендер, заметки, запуск и архитектура.
 - [viewer/src/main.ts](viewer/src/main.ts): связывание core, scene, transition, notes и ui.
 - [viewer/screenshots/](viewer/screenshots/): M-мир, R-мир, Architecture-режим, заметки.
 

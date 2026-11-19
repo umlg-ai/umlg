@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import type { Element, ElementKind } from "../core/types";
 import { ELEMENT_COLORS, kindLabel } from "./palette";
@@ -29,11 +30,15 @@ function addEdges(
         gapSize: 0.14,
         transparent: true,
         opacity: options.opacity ?? 0.9,
+        depthWrite: false,
+        toneMapped: false,
       })
     : new THREE.LineBasicMaterial({
         color,
         transparent: true,
         opacity: options.opacity ?? 0.9,
+        depthWrite: false,
+        toneMapped: false,
       });
   const lines = new THREE.LineSegments(geometry, material);
   if (options.dashed) {
@@ -44,64 +49,51 @@ function addEdges(
 }
 
 /**
- * Silhouettes are the primary type cue in the viewer: a class is a drafted
- * workshop with a gabled roof, an object is a working workshop with a sawtooth
- * roof and a chimney, a resource is a silo, a stage is a conveyor, and so on.
- * Colour stays a secondary accent; the outline must read on its own.
+ * The viewer does not paint a factory. It uses one abstract 3D grammar:
+ * a holographic blueprint in M, a materialized runtime module in R. Every kind
+ * owns a compact silhouette that must read in monochrome, so colour stays a
+ * property of the world and the kind is carried by geometry alone.
  */
-function houseGeometry(
+function roundedBox(
   width: number,
-  wallHeight: number,
-  roofHeight: number,
+  height: number,
   depth: number,
-): THREE.ExtrudeGeometry {
-  const halfWidth = width / 2;
-  const shape = new THREE.Shape();
-  shape.moveTo(-halfWidth, 0);
-  shape.lineTo(halfWidth, 0);
-  shape.lineTo(halfWidth, wallHeight);
-  shape.lineTo(0, wallHeight + roofHeight);
-  shape.lineTo(-halfWidth, wallHeight);
-  shape.closePath();
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth,
-    bevelEnabled: false,
-    curveSegments: 1,
-  });
-  geometry.translate(0, -(wallHeight + roofHeight) / 2, -depth / 2);
-  return geometry;
+  radius = 0.08,
+  segments = 3,
+): RoundedBoxGeometry {
+  return new RoundedBoxGeometry(width, height, depth, segments, radius);
 }
 
-function openHouseEdges(
+/**
+ * A box frame with one vertical edge missing. It is the обязательный признак
+ * of an abstract class: the contour never closes, even when both edges and
+ * glass render with the same colour.
+ */
+function openFrameEdges(
   width: number,
-  wallHeight: number,
-  roofHeight: number,
+  height: number,
   depth: number,
 ): THREE.BufferGeometry {
   const halfWidth = width / 2;
+  const halfHeight = height / 2;
   const halfDepth = depth / 2;
-  const bottom = -(wallHeight + roofHeight) / 2;
-  const eaves = bottom + wallHeight;
-  const ridge = eaves + roofHeight;
   const point = (x: number, y: number, z: number): THREE.Vector3 =>
     new THREE.Vector3(x, y, z);
   const segments: Array<[THREE.Vector3, THREE.Vector3]> = [
-    [point(-halfWidth, bottom, -halfDepth), point(halfWidth, bottom, -halfDepth)],
-    [point(halfWidth, bottom, -halfDepth), point(halfWidth, bottom, halfDepth)],
-    [point(halfWidth, bottom, halfDepth), point(-halfWidth, bottom, halfDepth)],
-    [point(-halfWidth, eaves, -halfDepth), point(halfWidth, eaves, -halfDepth)],
-    [point(halfWidth, eaves, -halfDepth), point(halfWidth, eaves, halfDepth)],
-    [point(halfWidth, eaves, halfDepth), point(-halfWidth, eaves, halfDepth)],
-    [point(-halfWidth, eaves, halfDepth), point(-halfWidth, eaves, -halfDepth)],
-    [point(0, ridge, -halfDepth), point(0, ridge, halfDepth)],
-    [point(-halfWidth, eaves, -halfDepth), point(0, ridge, -halfDepth)],
-    [point(halfWidth, eaves, -halfDepth), point(0, ridge, -halfDepth)],
-    [point(-halfWidth, eaves, halfDepth), point(0, ridge, halfDepth)],
-    [point(halfWidth, eaves, halfDepth), point(0, ridge, halfDepth)],
-    [point(-halfWidth, bottom, -halfDepth), point(-halfWidth, eaves, -halfDepth)],
-    [point(halfWidth, bottom, -halfDepth), point(halfWidth, eaves, -halfDepth)],
-    [point(halfWidth, bottom, halfDepth), point(halfWidth, eaves, halfDepth)],
-    // The front-left vertical edge is missing on purpose: the ghost contour is open.
+    // bottom
+    [point(-halfWidth, -halfHeight, -halfDepth), point(halfWidth, -halfHeight, -halfDepth)],
+    [point(halfWidth, -halfHeight, -halfDepth), point(halfWidth, -halfHeight, halfDepth)],
+    [point(halfWidth, -halfHeight, halfDepth), point(-halfWidth, -halfHeight, halfDepth)],
+    [point(-halfWidth, -halfHeight, halfDepth), point(-halfWidth, -halfHeight, -halfDepth)],
+    // top
+    [point(-halfWidth, halfHeight, -halfDepth), point(halfWidth, halfHeight, -halfDepth)],
+    [point(halfWidth, halfHeight, -halfDepth), point(halfWidth, halfHeight, halfDepth)],
+    [point(halfWidth, halfHeight, halfDepth), point(-halfWidth, halfHeight, halfDepth)],
+    [point(-halfWidth, halfHeight, halfDepth), point(-halfWidth, halfHeight, -halfDepth)],
+    // verticals, except the front-left one
+    [point(-halfWidth, -halfHeight, -halfDepth), point(-halfWidth, halfHeight, -halfDepth)],
+    [point(halfWidth, -halfHeight, -halfDepth), point(halfWidth, halfHeight, -halfDepth)],
+    [point(halfWidth, -halfHeight, halfDepth), point(halfWidth, halfHeight, halfDepth)],
   ];
   const points: THREE.Vector3[] = [];
   for (const [a, b] of segments) points.push(a, b);
@@ -124,21 +116,6 @@ function polygonShape(radius: number, sides: number): THREE.Shape {
 function hexRingGeometry(outer: number, inner: number, depth: number): THREE.ExtrudeGeometry {
   const shape = polygonShape(outer, 6);
   shape.holes.push(polygonShape(inner, 6));
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth,
-    bevelEnabled: false,
-    curveSegments: 1,
-  });
-  geometry.translate(0, 0, -depth / 2);
-  return geometry;
-}
-
-function sawtoothGeometry(width: number, height: number, depth: number): THREE.ExtrudeGeometry {
-  const shape = new THREE.Shape();
-  shape.moveTo(0, 0);
-  shape.lineTo(width, 0);
-  shape.lineTo(width, height);
-  shape.closePath();
   const geometry = new THREE.ExtrudeGeometry(shape, {
     depth,
     bevelEnabled: false,
@@ -215,144 +192,235 @@ function createFormKit(
  * readable: the blueprint shows exactly what will exist after crystallization.
  */
 function buildObjectForm(kit: FormKit): void {
-  const body = new THREE.BoxGeometry(1.6, 0.9, 1.3);
-  kit.addMesh(body, kit.surface, -0.15);
+  // A materialized runtime module: a tall monolith with a flush crown, a lit
+  // vertical seam, a recessed service panel and a sensor lens. The tall
+  // silhouette must not read as a house or a stage.
+  const foot = roundedBox(0.78, 0.1, 0.64, 0.03);
+  kit.addMesh(foot, kit.dark, -0.72);
+
+  const body = roundedBox(0.95, 1.5, 0.8, 0.1);
+  kit.addMesh(body, kit.surface, 0.0);
   const bodyEdges = kit.addEdges(new THREE.EdgesGeometry(body), kit.bodyEdge, {
-    opacity: kit.edgeOpacity,
+    opacity: kit.edgeOpacity * 0.55,
   });
-  bodyEdges.position.y = -0.15;
+  bodyEdges.position.y = 0.0;
 
-  const toothWidth = 1.6 / 3;
-  for (let index = 0; index < 3; index += 1) {
-    const toothGeometry = sawtoothGeometry(toothWidth, 0.32, 1.2);
-    const tooth = kit.addMesh(toothGeometry, kit.surface, 0.3);
-    tooth.position.set(-0.8 + index * toothWidth, 0.3, 0);
-    const toothEdges = kit.addEdges(new THREE.EdgesGeometry(toothGeometry), kit.edge, {
-      opacity: kit.edgeOpacity * 0.8,
-    });
-    toothEdges.position.copy(tooth.position);
-  }
+  const crown = roundedBox(0.82, 0.1, 0.7, 0.05);
+  kit.addMesh(crown, kit.detail, 0.8);
 
-  const chimney = kit.addMesh(
-    new THREE.CylinderGeometry(0.075, 0.09, 0.5, 10),
-    kit.dark,
-    0.55,
+  const brow = roundedBox(0.9, 0.05, 0.05, 0.02);
+  const browMesh = kit.addMesh(brow, kit.detail, 0.66);
+  browMesh.position.z = 0.4;
+
+  const seam = kit.addMesh(new THREE.BoxGeometry(0.05, 1.28, 0.02), kit.accent, 0.02);
+  seam.position.z = 0.405;
+  seam.renderOrder = 2;
+
+  const panel = roundedBox(0.64, 0.52, 0.04, 0.02);
+  const face = kit.addMesh(panel, kit.detail, -0.34);
+  face.position.z = 0.405;
+
+  const grille = kit.addMesh(new THREE.BoxGeometry(0.5, 0.03, 0.02), kit.dark, -0.62);
+  grille.position.z = 0.42;
+  grille.renderOrder = 2;
+
+  const lens = kit.addMesh(
+    new THREE.CylinderGeometry(0.15, 0.15, 0.05, 20),
+    kit.accent,
+    0.36,
   );
-  chimney.position.set(0.5, 0.55, -0.35);
+  lens.rotation.x = Math.PI / 2;
+  lens.position.z = 0.43;
+  lens.renderOrder = 2;
+
+  const rim = kit.addMesh(new THREE.TorusGeometry(0.19, 0.02, 8, 24), kit.detail, 0.36);
+  rim.position.z = 0.43;
+
+  for (let index = 0; index < 4; index += 1) {
+    for (const x of [-0.49, 0.49]) {
+      const vent = kit.addMesh(
+        new THREE.BoxGeometry(0.02, 0.05, 0.42),
+        kit.dark,
+        -0.42 + index * 0.16,
+      );
+      vent.position.set(x, -0.42 + index * 0.16, 0);
+    }
+  }
 }
 
 function buildResourceForm(kit: FormKit): void {
-  const body = kit.addMesh(
-    new THREE.CylinderGeometry(0.52, 0.52, 0.9, 22, 1),
-    kit.surface,
-    -0.05,
-  );
-  body.position.set(0, -0.05, 0);
-  const bodyEdges = kit.addEdges(new THREE.EdgesGeometry(body.geometry, 30), kit.bodyEdge, {
-    opacity: kit.edgeOpacity,
-  });
-  bodyEdges.position.y = -0.05;
+  // A data store: a low stack of uniform memory slabs on corner rails. Flat
+  // and layered, so it cannot be confused with the tall object monolith.
+  kit.addMesh(roundedBox(1.12, 0.08, 0.86, 0.03), kit.detail, -0.5);
 
-  const dome = kit.addMesh(new THREE.SphereGeometry(0.52, 20, 10), kit.surface, 0.4);
-  dome.scale.y = 0.55;
-  dome.position.set(0, 0.4, 0);
-
-  for (const y of [-0.4, 0.05]) {
-    const band = kit.addMesh(
-      new THREE.TorusGeometry(0.53, 0.035, 8, 32),
-      kit.accent,
-    );
-    band.rotation.x = Math.PI / 2;
-    band.position.set(0, y, 0);
+  for (const x of [-0.44, 0.44]) {
+    for (const z of [-0.32, 0.32]) {
+      const rail = kit.addMesh(
+        new THREE.CylinderGeometry(0.026, 0.026, 0.9, 8),
+        kit.dark,
+        -0.02,
+      );
+      rail.position.set(x, -0.02, z);
+    }
   }
 
-  const pipe = kit.addMesh(new THREE.CylinderGeometry(0.07, 0.07, 0.3, 8), kit.detail, -0.15);
-  pipe.rotation.z = Math.PI / 2;
-  pipe.position.set(0.6, -0.15, 0);
+  const plates: Array<{ y: number; rotation: number }> = [
+    { y: -0.34, rotation: -0.06 },
+    { y: -0.04, rotation: 0.05 },
+    { y: 0.26, rotation: -0.03 },
+  ];
+  for (const plate of plates) {
+    const geometry = roundedBox(0.92, 0.14, 0.7, 0.03);
+    const mesh = kit.addMesh(geometry, kit.surface, plate.y);
+    mesh.rotation.y = plate.rotation;
+    const edges = kit.addEdges(new THREE.EdgesGeometry(geometry), kit.edge, {
+      opacity: kit.edgeOpacity * 0.7,
+    });
+    edges.position.y = plate.y;
+    edges.rotation.y = plate.rotation;
+
+    const strip = kit.addMesh(
+      new THREE.BoxGeometry(0.4, 0.03, 0.02),
+      kit.accent,
+      plate.y,
+    );
+    strip.position.set(0.14, plate.y, 0.36);
+    strip.rotation.y = plate.rotation;
+    strip.renderOrder = 2;
+  }
+
+  const cover = kit.addMesh(roundedBox(0.98, 0.06, 0.76, 0.02), kit.detail, 0.43);
+  cover.rotation.y = 0.03;
+  const slot = kit.addMesh(new THREE.BoxGeometry(0.3, 0.02, 0.03), kit.accent, 0.47);
+  slot.renderOrder = 2;
 }
 
 function buildProcessForm(kit: FormKit): void {
-  const body = kit.addMesh(
-    new THREE.CylinderGeometry(0.42, 0.5, 1.0, 8),
-    kit.surface,
-    -0.05,
+  // A processing core: one upright ring around a faceted kernel, held by a
+  // low bracket. The ring is the silhouette; there is no boxy chassis.
+  const pad = kit.addMesh(
+    new THREE.TorusGeometry(0.3, 0.03, 8, 28),
+    kit.dark,
+    -0.5,
   );
-  body.position.set(0, -0.05, 0);
-  const bodyEdges = kit.addEdges(new THREE.EdgesGeometry(body.geometry, 30), kit.bodyEdge, {
-    opacity: kit.edgeOpacity,
-  });
-  bodyEdges.position.y = -0.05;
+  pad.rotation.x = Math.PI / 2;
 
-  const cap = kit.addMesh(new THREE.ConeGeometry(0.42, 0.3, 8), kit.surface, 0.62);
-  cap.position.set(0, 0.62, 0);
+  for (const x of [-0.24, 0.24]) {
+    const arm = kit.addMesh(new THREE.BoxGeometry(0.06, 0.44, 0.1), kit.detail, -0.3);
+    arm.position.x = x;
+  }
 
-  const band = kit.addMesh(new THREE.TorusGeometry(0.46, 0.035, 8, 32), kit.accent);
-  band.rotation.x = Math.PI / 2;
-  band.position.set(0, 0.18, 0);
+  kit.addMesh(new THREE.TorusGeometry(0.56, 0.055, 10, 36), kit.surface, 0.05);
+  const ringEdges = kit.addEdges(
+    new THREE.EdgesGeometry(new THREE.TorusGeometry(0.56, 0.055, 10, 36)),
+    kit.edge,
+    { opacity: kit.edgeOpacity * 0.7 },
+  );
+  ringEdges.position.y = 0.05;
+
+  const kernel = kit.addMesh(new THREE.OctahedronGeometry(0.22, 0), kit.accent, 0.05);
+  kernel.renderOrder = 2;
+  const orbit = kit.addMesh(new THREE.TorusGeometry(0.33, 0.015, 6, 24), kit.accent, 0.05);
+  orbit.rotation.x = Math.PI / 2.4;
 }
 
 function buildStageForm(kit: FormKit): void {
-  const base = new THREE.BoxGeometry(2.0, 0.16, 0.85);
-  kit.addMesh(base, kit.surface, -0.24);
-  const baseEdges = kit.addEdges(new THREE.EdgesGeometry(base), kit.bodyEdge, {
-    opacity: kit.edgeOpacity,
+  // A directed conduit: one long low beam, guide rings and an arrowhead. The
+  // horizontal silhouette separates it from the vertical object module.
+  for (const x of [-0.82, 0.82]) {
+    const foot = kit.addMesh(roundedBox(0.18, 0.14, 0.5, 0.03), kit.dark, -0.62);
+    foot.position.x = x;
+  }
+
+  const beam = roundedBox(2.24, 0.24, 0.46, 0.06);
+  kit.addMesh(beam, kit.surface, -0.26);
+  const beamEdges = kit.addEdges(new THREE.EdgesGeometry(beam), kit.bodyEdge, {
+    opacity: kit.edgeOpacity * 0.6,
   });
-  baseEdges.position.y = -0.24;
+  beamEdges.position.y = -0.26;
 
-  for (const z of [-0.44, 0.44]) {
-    const rail = kit.addMesh(new THREE.BoxGeometry(2.0, 0.1, 0.06), kit.detail, -0.08);
-    rail.position.set(0, -0.08, z);
-  }
-  for (const x of [-0.6, 0, 0.6]) {
-    const roller = kit.addMesh(
-      new THREE.CylinderGeometry(0.07, 0.07, 0.78, 10),
-      kit.detail,
-      -0.06,
+  const flow = kit.addMesh(new THREE.BoxGeometry(1.7, 0.02, 0.06), kit.accent, -0.12);
+  flow.renderOrder = 2;
+
+  for (const x of [-0.78, -0.1, 0.58]) {
+    const ring = kit.addMesh(
+      new THREE.TorusGeometry(0.29, 0.028, 8, 28),
+      kit.accent,
+      -0.26,
     );
-    roller.rotation.x = Math.PI / 2;
-    roller.position.set(x, -0.06, 0);
+    ring.rotation.y = Math.PI / 2;
+    ring.position.x = x;
+    ring.renderOrder = 2;
   }
 
-  const chevron = new THREE.ConeGeometry(0.11, 0.3, 3);
-  for (const x of [-0.6, 0, 0.6]) {
-    const mesh = kit.addMesh(chevron.clone(), kit.accent, 0.16);
-    mesh.rotation.z = -Math.PI / 2;
-    mesh.position.set(x, 0.16, 0);
-  }
+  const arrow = kit.addMesh(new THREE.ConeGeometry(0.18, 0.4, 4), kit.accent, -0.26);
+  arrow.rotation.z = -Math.PI / 2;
+  arrow.position.x = 1.3;
+  arrow.renderOrder = 2;
 }
 
 function buildCommandForm(kit: FormKit): void {
-  const plate = kit.addMesh(new THREE.BoxGeometry(0.9, 0.06, 0.62), kit.surface, 0.04);
-  plate.position.set(0, 0.04, 0);
-  const plateEdges = kit.addEdges(new THREE.EdgesGeometry(plate.geometry), kit.edge, {
-    opacity: kit.edgeOpacity + 0.25,
-  });
-  plateEdges.position.y = 0.04;
+  // A signal shard: a faceted carrier floating above a thin marker ring. It is
+  // deliberately small and has no chassis, so it reads as a transient signal.
+  const marker = kit.addMesh(
+    new THREE.TorusGeometry(0.36, 0.02, 6, 32),
+    kit.dark,
+    -0.52,
+  );
+  marker.rotation.x = Math.PI / 2;
 
-  const paper = kit.addMesh(new THREE.BoxGeometry(0.76, 0.02, 0.5), kit.detail, 0.09);
-  paper.position.set(0, 0.09, 0);
-  const clip = kit.addMesh(new THREE.BoxGeometry(0.2, 0.09, 0.12), kit.detail, 0.11);
-  clip.position.set(0, 0.11, -0.26);
+  const shardGeometry = new THREE.OctahedronGeometry(0.32, 0);
+  shardGeometry.scale(0.7, 1.5, 0.7);
+  kit.addMesh(shardGeometry, kit.surface, 0.08);
+  const shardEdges = kit.addEdges(new THREE.EdgesGeometry(shardGeometry), kit.edge, {
+    opacity: Math.min(1, kit.edgeOpacity + 0.35),
+  });
+  shardEdges.position.y = 0.08;
+
+  const collar = kit.addMesh(
+    new THREE.TorusGeometry(0.22, 0.028, 8, 24),
+    kit.accent,
+    -0.24,
+  );
+  collar.rotation.x = Math.PI / 2;
+  collar.renderOrder = 2;
+
+  const tip = kit.addMesh(new THREE.OctahedronGeometry(0.07, 0), kit.accent, 0.64);
+  tip.renderOrder = 2;
 }
 
 function buildActorForm(kit: FormKit): void {
-  const base = kit.addMesh(
-    new THREE.CylinderGeometry(0.72, 0.92, 0.26, 20),
-    kit.surface,
-    -0.45,
+  // A host context: an open gyroscope of two crossed rings around a kernel.
+  // No pedestal or screen, so it cannot be mistaken for a standalone device.
+  const pad = kit.addMesh(
+    new THREE.TorusGeometry(0.34, 0.025, 6, 28),
+    kit.dark,
+    -0.5,
   );
-  base.position.set(0, -0.45, 0);
+  pad.rotation.x = Math.PI / 2;
 
-  const column = kit.addMesh(new THREE.BoxGeometry(0.3, 0.5, 0.28), kit.detail, -0.13);
-  column.position.set(0, -0.13, 0);
+  const outer = kit.addMesh(
+    new THREE.TorusGeometry(0.5, 0.032, 8, 36),
+    kit.surface,
+    0.05,
+  );
+  outer.rotation.x = Math.PI / 2.6;
 
-  const screen = kit.addMesh(new THREE.BoxGeometry(0.9, 0.55, 0.07), kit.dark, 0.36);
-  screen.rotation.x = -0.2;
-  screen.position.set(0, 0.36, 0);
+  const inner = kit.addMesh(
+    new THREE.TorusGeometry(0.37, 0.026, 8, 32),
+    kit.accent,
+    0.05,
+  );
+  inner.rotation.y = Math.PI / 2;
+  inner.rotation.x = 0.4;
+  inner.renderOrder = 2;
+
+  const kernel = kit.addMesh(new THREE.IcosahedronGeometry(0.16, 1), kit.accent, 0.05);
+  kernel.renderOrder = 2;
 }
 
 function buildFallbackForm(kit: FormKit): void {
-  const geometry = new THREE.BoxGeometry(0.8, 0.6, 0.8);
+  const geometry = roundedBox(0.8, 0.6, 0.8, 0.1);
   kit.addMesh(geometry, kit.surface, 0.3);
   const edges = kit.addEdges(new THREE.EdgesGeometry(geometry), kit.edge, {
     opacity: kit.edgeOpacity,
@@ -408,19 +476,19 @@ function fitPreviewSlot(
 }
 
 function addEmptyPreview(group: THREE.Group, color: number): void {
-  const footprint = new THREE.BoxGeometry(0.9, 0.02, 0.62);
+  const footprint = roundedBox(0.9, 0.04, 0.62, 0.03);
   const base = addEdges(group, new THREE.EdgesGeometry(footprint), color, {
     dashed: true,
     opacity: 0.35,
   });
-  base.position.y = 0.01;
+  base.position.y = 0.02;
 
-  const frame = new THREE.BoxGeometry(0.62, 0.3, 0.44);
+  const frame = roundedBox(0.62, 0.3, 0.44, 0.04);
   const box = addEdges(group, new THREE.EdgesGeometry(frame), color, {
     dashed: true,
     opacity: 0.55,
   });
-  box.position.y = 0.16;
+  box.position.y = 0.19;
 }
 
 export class ElementVisual {
@@ -444,6 +512,7 @@ export class ElementVisual {
   private selected = false;
   private density: number;
   private labelsVisible = true;
+  private readonly baseScale = 1.45;
 
   constructor(element: Element, options: ElementVisualOptions) {
     this.element = element;
@@ -455,25 +524,39 @@ export class ElementVisual {
 
     const color = ELEMENT_COLORS[element.kind] ?? 0xaaaaaa;
     const mental = element.world === "M";
+    // Mental surfaces float as glass; real surfaces are dark machined metal, so
+    // the warm world colour lives in the edges, accents and lights instead of
+    // washing every body into the same orange clay.
+    const base = new THREE.Color(color);
+    const surfaceTint = mental
+      ? base.clone()
+      : base.clone().lerp(new THREE.Color(0x1b1d24), 0.82);
+    const detailTint = mental
+      ? base.clone()
+      : base.clone().lerp(new THREE.Color(0x3c4250), 0.7);
     const additive = (opacity: number, emissiveIntensity: number) =>
-      new THREE.MeshStandardMaterial({
+      new THREE.MeshPhysicalMaterial({
         color,
         emissive: color,
         emissiveIntensity,
         transparent: true,
         opacity,
-        roughness: 0.5,
-        metalness: 0.05,
+        roughness: 0.12,
+        metalness: 0,
+        clearcoat: 1,
+        clearcoatRoughness: 0.06,
         depthWrite: false,
         side: THREE.DoubleSide,
       });
-    const solid = (metalness: number, roughness: number) =>
-      new THREE.MeshStandardMaterial({
-        color,
+    const solid = (metalness: number, roughness: number, tint = surfaceTint) =>
+      new THREE.MeshPhysicalMaterial({
+        color: tint,
         emissive: color,
-        emissiveIntensity: mental ? 0.18 : 0.08,
+        emissiveIntensity: mental ? 0.16 : 0.03,
         metalness,
         roughness,
+        clearcoat: 0.65,
+        clearcoatRoughness: 0.22,
       });
 
     const addMesh = (
@@ -509,24 +592,31 @@ export class ElementVisual {
       dark?: { color: number; emissiveIntensity: number };
     }): FormKit => {
       const surface = solid(options.metalness, options.roughness);
-      const detail = solid(options.metalness + 0.05, options.roughness + 0.03);
+      const detail = solid(
+        options.metalness + 0.15,
+        options.roughness + 0.02,
+        detailTint,
+      );
       const accent =
         options.accent === undefined
           ? detail
           : new THREE.MeshBasicMaterial({
               color: options.accent,
               transparent: true,
-              opacity: 0.9,
+              opacity: 0.95,
+              toneMapped: false,
             });
       const dark =
         options.dark === undefined
           ? detail
-          : new THREE.MeshStandardMaterial({
+          : new THREE.MeshPhysicalMaterial({
               color: options.dark.color,
               emissive: color,
               emissiveIntensity: options.dark.emissiveIntensity,
               metalness: 0.4,
-              roughness: 0.5,
+              roughness: 0.45,
+              clearcoat: 0.4,
+              clearcoatRoughness: 0.3,
             });
       return createFormKit(
         this.group,
@@ -545,18 +635,18 @@ export class ElementVisual {
     const previewKinds = (options.previewKinds ?? []).slice(0, 5);
     if (element.kind === "class" || element.kind === "component") {
       const previewMaterials: FormMaterials = {
-        surface: ghost(0.24),
-        detail: ghost(0.34),
-        accent: ghost(0.72),
-        dark: ghost(0.42),
+        surface: ghost(0.04),
+        detail: ghost(0.06),
+        accent: ghost(0.9),
+        dark: ghost(0.1),
       };
       const previewRoot = new THREE.Group();
-      previewRoot.position.y = element.kind === "component" ? -0.57 : -0.71;
+      previewRoot.position.y = element.kind === "component" ? -0.56 : -0.62;
       if (previewKinds.length > 0) {
         const gap = 0.08;
-        const totalWidth = element.kind === "component" ? 2.3 : 1.25;
-        const maxHeight = element.kind === "component" ? 0.82 : 0.66;
-        const maxDepth = element.kind === "component" ? 2.2 : 0.95;
+        const totalWidth = element.kind === "component" ? 2.3 : 1.35;
+        const maxHeight = element.kind === "component" ? 0.86 : 0.68;
+        const maxDepth = element.kind === "component" ? 2.2 : 1.0;
         const slotWidth =
           (totalWidth - gap * (previewKinds.length - 1)) / previewKinds.length;
         previewKinds.forEach((kind, index) => {
@@ -564,7 +654,7 @@ export class ElementVisual {
           const kit = createFormKit(
             slot,
             previewMaterials,
-            { edge: color, bodyEdge: color, edgeOpacity: 0.72 },
+            { edge: color, bodyEdge: color, edgeOpacity: 0.92 },
             (mesh) => this.meshes.push(mesh),
             element.id,
           );
@@ -589,30 +679,91 @@ export class ElementVisual {
 
     switch (element.kind) {
       case "class": {
-        const geometry = houseGeometry(1.8, 0.95, 0.5, 1.4);
-        addMesh(geometry, additive(0.1, 0.5));
-        addEdges(this.group, new THREE.EdgesGeometry(geometry), color, { opacity: 0.95 });
-        labelHeight = 1.0;
+        // A vitrine: a glass blueprint case holding the promise of the R twin.
+        const plinth = roundedBox(1.8, 0.06, 1.4, 0.03);
+        addMesh(plinth, additive(0.1, 0.3), -0.66);
+        const plinthEdges = addEdges(
+          this.group,
+          new THREE.EdgesGeometry(plinth),
+          color,
+          { opacity: 0.5 },
+        );
+        plinthEdges.position.y = -0.66;
+
+        const caseGeometry = roundedBox(1.72, 0.9, 1.34, 0.08);
+        addMesh(caseGeometry, additive(0.035, 0.5), -0.18);
+        const caseEdges = addEdges(
+          this.group,
+          new THREE.EdgesGeometry(caseGeometry),
+          color,
+          { opacity: 0.55 },
+        );
+        caseEdges.position.y = -0.18;
+
+        const postGeometry = roundedBox(0.055, 0.9, 0.055, 0.02);
+        const postMaterial = additive(0.5, 1.0);
+        for (const x of [-0.84, 0.84]) {
+          for (const z of [-0.65, 0.65]) {
+            const post = addMesh(postGeometry, postMaterial, -0.18);
+            post.position.set(x, -0.18, z);
+          }
+        }
+
+        const cap = roundedBox(1.84, 0.1, 1.46, 0.05);
+        const capEdges = addEdges(
+          this.group,
+          new THREE.EdgesGeometry(cap),
+          color,
+          { opacity: 0.9 },
+        );
+        capEdges.position.y = 0.32;
+        labelHeight = 0.46;
         break;
       }
       case "abstractClass": {
-        const geometry = houseGeometry(1.8, 0.95, 0.5, 1.4);
-        addMesh(geometry, additive(0.07, 0.7));
-        addEdges(this.group, openHouseEdges(1.8, 0.95, 0.5, 1.4), color, {
-          dashed: true,
-          opacity: 0.95,
-        });
-        labelHeight = 1.0;
+        const plinth = roundedBox(1.8, 0.06, 1.4, 0.03);
+        addMesh(plinth, additive(0.08, 0.26), -0.66);
+        const plinthEdges = addEdges(
+          this.group,
+          new THREE.EdgesGeometry(plinth),
+          color,
+          { dashed: true, opacity: 0.45 },
+        );
+        plinthEdges.position.y = -0.66;
+
+        const frame = addEdges(
+          this.group,
+          openFrameEdges(1.72, 0.9, 1.34),
+          color,
+          { dashed: true, opacity: 0.95 },
+        );
+        frame.position.y = -0.18;
+
+        const cap = roundedBox(1.84, 0.1, 1.46, 0.05);
+        addMesh(cap, additive(0.1, 0.6), 0.32);
+        const capEdges = addEdges(
+          this.group,
+          openFrameEdges(1.84, 0.1, 1.46),
+          color,
+          { dashed: true, opacity: 0.6 },
+        );
+        capEdges.position.y = 0.32;
+        labelHeight = 0.46;
         break;
       }
       case "interface": {
         const geometry = hexRingGeometry(0.74, 0.44, 0.16);
-        addMesh(geometry, mental ? additive(0.55, 0.85) : solid(0.5, 0.35));
-        addEdges(this.group, new THREE.EdgesGeometry(geometry), color, { opacity: 0.6 });
+        addMesh(geometry, additive(0.45, 0.85));
+        addEdges(this.group, new THREE.EdgesGeometry(geometry), color, { opacity: 0.7 });
+        const core = addMesh(
+          new THREE.TorusGeometry(0.5, 0.028, 6, 6),
+          additive(0.85, 1.2),
+        );
+        core.rotation.z = Math.PI / 6;
         for (const x of [-0.86, 0.86]) {
           const port = addMesh(
             new THREE.CylinderGeometry(0.1, 0.1, 0.3, 8),
-            mental ? additive(0.7, 0.9) : solid(0.6, 0.3),
+            additive(0.6, 0.9),
           );
           port.rotation.z = Math.PI / 2;
           port.position.set(x, 0, 0);
@@ -621,22 +772,33 @@ export class ElementVisual {
         break;
       }
       case "component": {
-        const base = new THREE.BoxGeometry(3.0, 0.1, 3.0);
-        addMesh(base, additive(0.1, 0.45), -0.62);
-        const baseEdges = addEdges(this.group, new THREE.EdgesGeometry(base), color, {
-          opacity: 0.55,
-        });
+        // A platform: a stage that holds the miniatures of its parts.
+        const base = roundedBox(3.0, 0.12, 3.0, 0.12);
+        addMesh(base, additive(0.14, 0.5), -0.62);
+        const baseEdges = addEdges(
+          this.group,
+          new THREE.EdgesGeometry(base),
+          color,
+          { opacity: 0.6 },
+        );
         baseEdges.position.y = -0.62;
-        const postGeometry = new THREE.BoxGeometry(0.09, 0.95, 0.09);
-        for (const x of [-1.4, 1.4]) {
-          for (const z of [-1.4, 1.4]) {
-            const post = addMesh(postGeometry, additive(0.35, 0.7), -0.14);
-            post.position.set(x, -0.14, z);
+
+        const postGeometry = roundedBox(0.08, 0.9, 0.08, 0.02);
+        for (const x of [-1.38, 1.38]) {
+          for (const z of [-1.38, 1.38]) {
+            const post = addMesh(postGeometry, additive(0.4, 0.8), -0.16);
+            post.position.set(x, -0.16, z);
+            const tip = addMesh(
+              new THREE.SphereGeometry(0.055, 10, 8),
+              additive(0.9, 1.2),
+            );
+            tip.position.set(x, 0.3, z);
           }
         }
+
         const rails = addEdges(
           this.group,
-          new THREE.EdgesGeometry(new THREE.BoxGeometry(2.8, 0.02, 2.8)),
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(2.76, 0.02, 2.76)),
           color,
           { dashed: true, opacity: 0.55 },
         );
@@ -646,51 +808,57 @@ export class ElementVisual {
       }
       case "concept": {
         const geometry = new THREE.OctahedronGeometry(0.82, 0);
-        addMesh(geometry, additive(0.2, 0.9));
+        addMesh(geometry, additive(0.16, 0.85));
         addEdges(this.group, new THREE.EdgesGeometry(geometry), color, { opacity: 0.95 });
         const inner = addMesh(
-          new THREE.IcosahedronGeometry(0.28, 0),
+          new THREE.IcosahedronGeometry(0.3, 0),
           new THREE.MeshBasicMaterial({
             color,
             wireframe: true,
             transparent: true,
-            opacity: 0.7,
+            opacity: 0.85,
+            toneMapped: false,
           }),
         );
-        inner.position.set(0, 0, 0);
+        inner.rotation.set(0.4, 0.6, 0);
+        const orbit = addMesh(
+          new THREE.TorusGeometry(0.66, 0.018, 6, 40),
+          additive(0.9, 1.2),
+        );
+        orbit.rotation.x = Math.PI / 2.2;
         labelHeight = 1.0;
         break;
       }
       case "object": {
         buildObjectForm(
           realKit({
-            metalness: 0.35,
-            roughness: 0.42,
+            metalness: 0.72,
+            roughness: 0.3,
             edge: color,
-            dark: { color: 0x3a2418, emissiveIntensity: 0.15 },
+            dark: { color: 0x15161c, emissiveIntensity: 0.12 },
           }),
         );
-        labelHeight = 1.0;
+        labelHeight = 1.06;
         break;
       }
       case "resource": {
         buildResourceForm(
           realKit({
-            metalness: 0.45,
-            roughness: 0.38,
+            metalness: 0.74,
+            roughness: 0.28,
             edge: color,
-            bodyEdge: 0x5a351d,
+            bodyEdge: 0x6b4a33,
             accent: 0xffd0a2,
           }),
         );
-        labelHeight = 0.92;
+        labelHeight = 0.72;
         break;
       }
       case "process": {
         buildProcessForm(
           realKit({
-            metalness: 0.3,
-            roughness: 0.45,
+            metalness: 0.68,
+            roughness: 0.32,
             edge: color,
             accent: 0xffe0a3,
           }),
@@ -701,10 +869,10 @@ export class ElementVisual {
       case "stage": {
         buildStageForm(
           realKit({
-            metalness: 0.25,
-            roughness: 0.35,
+            metalness: 0.7,
+            roughness: 0.28,
             edge: color,
-            bodyEdge: 0x5a351d,
+            bodyEdge: 0x6b4a33,
             accent: 0xffe0a3,
           }),
         );
@@ -714,21 +882,21 @@ export class ElementVisual {
       case "command": {
         buildCommandForm(
           realKit({
-            metalness: 0.2,
-            roughness: 0.3,
+            metalness: 0.6,
+            roughness: 0.26,
             edge: 0xfff0c8,
             bodyEdge: 0xfff0c8,
             accent: 0xfff0c8,
           }),
         );
-        labelHeight = 0.7;
+        labelHeight = 0.86;
         break;
       }
       case "actor": {
         buildActorForm(
           realKit({
-            metalness: 0.4,
-            roughness: 0.5,
+            metalness: 0.7,
+            roughness: 0.3,
             edge: color,
             dark: { color: 0x16121b, emissiveIntensity: 0.35 },
           }),
@@ -737,7 +905,7 @@ export class ElementVisual {
         break;
       }
       default: {
-        const geometry = new THREE.BoxGeometry(1.1, 1.1, 1.1);
+        const geometry = roundedBox(1.1, 1.1, 1.1, 0.14);
         addMesh(geometry, mental ? additive(0.2, 0.5) : solid(0.3, 0.5));
         addEdges(this.group, new THREE.EdgesGeometry(geometry), color);
         labelHeight = 0.9;
@@ -751,9 +919,25 @@ export class ElementVisual {
       depthWrite: false,
       side: THREE.DoubleSide,
     });
+    const groundY =
+      element.kind === "class" || element.kind === "abstractClass"
+        ? -0.8
+        : element.kind === "concept"
+          ? -0.84
+          : element.kind === "component"
+            ? -0.69
+            : element.kind === "interface"
+              ? -0.55
+              : element.kind === "object"
+                ? -0.76
+                : element.kind === "resource" || element.kind === "process"
+                  ? -0.56
+                  : element.kind === "stage"
+                    ? -0.72
+                    : -0.55;
     const disc = new THREE.Mesh(new THREE.CircleGeometry(1.25, 36), discMaterial);
     disc.rotation.x = -Math.PI / 2;
-    disc.position.y = -0.78;
+    disc.position.y = groundY;
     disc.renderOrder = -1;
     this.group.add(disc);
 
@@ -769,7 +953,7 @@ export class ElementVisual {
       this.selectionMaterial,
     );
     this.selectionRing.rotation.x = -Math.PI / 2;
-    this.selectionRing.position.y = -0.76;
+    this.selectionRing.position.y = groundY + 0.02;
     this.selectionRing.renderOrder = 2;
     this.group.add(this.selectionRing);
 
@@ -805,6 +989,7 @@ export class ElementVisual {
     this.group.add(this.label);
 
     this.captureStyles();
+    this.group.scale.setScalar(this.baseScale);
     this.setDensity(options.density);
   }
 
@@ -836,7 +1021,7 @@ export class ElementVisual {
     this.selected = selected;
     this.selectionMaterial.opacity = selected ? 0.85 : 0;
     this.labelElement.classList.toggle("selected", selected);
-    this.group.scale.setScalar(selected ? 1.06 : 1);
+    this.group.scale.setScalar(selected ? this.baseScale * 1.06 : this.baseScale);
     this.applySelectionStyle();
     this.applyLabelVisibility();
     this.setDensity(this.density);

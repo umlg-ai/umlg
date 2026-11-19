@@ -22,7 +22,7 @@
 | Доменный эксперт | OpenGL, ресурсы, конвейер | [`checklists/domain-opengl.md`](checklists/domain-opengl.md) | [`prompts/domain.md`](prompts/domain.md) |
 | Методист | обучение, self-check, нагрузка | [`checklists/learning.md`](checklists/learning.md) | [`prompts/learning.md`](prompts/learning.md) |
 | Скептик | «зачем это вообще», red team | [`checklists/skeptic.md`](checklists/skeptic.md) | [`prompts/skeptic.md`](prompts/skeptic.md) |
-| Скаут аналогий | метафоры-«моды», замена цеха | [`checklists/metaphor.md`](checklists/metaphor.md) | [`prompts/metaphor.md`](prompts/metaphor.md) |
+| Скаут аналогий | метафоры-«моды», замена текущей метафоры | [`checklists/metaphor.md`](checklists/metaphor.md) | [`prompts/metaphor.md`](prompts/metaphor.md) |
 | Доступность | reduced motion, цвет, звук, screen reader | [`checklists/accessibility.md`](checklists/accessibility.md) | [`prompts/accessibility.md`](prompts/accessibility.md) |
 | ИИ-контрибьютор | вход в репозиторий без человека | [`checklists/ai-contributor.md`](checklists/ai-contributor.md) | [`prompts/ai-contributor.md`](prompts/ai-contributor.md) |
 
@@ -87,7 +87,7 @@ accept / accept with changes / reject / defer
 
 ## Аналогии-моды
 
-Текущая метафора — цех. Она может быть заменена или дополнена, если challenger выигрывает по scorecard.
+Текущая метафора — «голографический чертёж ↔ материализованный runtime-модуль» (см. [`../../spec/03-visual-grammar.md`](../../spec/03-visual-grammar.md)). Фабричная метафора сохранена в [`analogies/`](analogies/) как история ревью; она может быть заменена или дополнена, если challenger выигрывает по scorecard.
 
 - [`analogies/README.md`](analogies/README.md)
 - [`analogies/scorecard.md`](analogies/scorecard.md)

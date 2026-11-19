@@ -74,6 +74,20 @@ button {
   height: 100%;
 }
 
+/* A soft vignette gives the scene depth without touching the model. */
+#scene-container::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 46%,
+    rgba(0, 0, 0, 0) 38%,
+    rgba(0, 0, 0, 0.32) 76%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+}
+
 #label-layer {
   pointer-events: none;
   overflow: hidden;
