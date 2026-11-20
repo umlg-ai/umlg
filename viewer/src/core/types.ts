@@ -1,3 +1,5 @@
+import type { AnySchema, ValidateFunction } from "ajv";
+
 export type WorldId = "M" | "R";
 
 export type ElementKind =
@@ -139,9 +141,22 @@ export interface UmlgLayout {
   notes?: string;
 }
 
+/** The two schemas as fetched from `schema/`, reused by the in-browser editor. */
+export interface DraftSchemas {
+  model: AnySchema;
+  layout: AnySchema;
+}
+
+/** AJV validators compiled once from the two schemas fetched at startup. */
+export interface CompiledSchemas {
+  model: ValidateFunction;
+  layout: ValidateFunction;
+}
+
 export interface LoadedModel {
   model: UmlgModel;
   layout: UmlgLayout;
   modelUrl: string;
   layoutUrl: string;
+  schemas: CompiledSchemas;
 }

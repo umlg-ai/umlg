@@ -1,9 +1,6 @@
-import Ajv2020, { type ErrorObject } from "ajv/dist/2020";
 import type { AnySchema } from "ajv";
-import type { LoadedModel, UmlgLayout, UmlgModel } from "./types";
-import { buildIndex, validateLayout, validateModel, type Issue } from "./validate";
-
-const ajv = new Ajv2020({ allErrors: true, strict: false });
+import type { LoadedModel } from "./types";
+import { compileSchemas, validateDraftValues } from "./draft";
 
 export class ModelLoadError extends Error {
   readonly issues: string[];
@@ -40,17 +37,6 @@ async function fetchJson(url: string): Promise<unknown> {
   }
 }
 
-function formatAjvErrors(errors: ErrorObject[] | null | undefined): string[] {
-  return (errors ?? []).map((error) => {
-    const path = error.instancePath || "/";
-    return `${path} ${error.message ?? "invalid"}`;
-  });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 export async function loadModelFromUrl(): Promise<LoadedModel> {
   const base = import.meta.env.BASE_URL;
   const params = new URLSearchParams(window.location.search);
@@ -64,43 +50,24 @@ export async function loadModelFromUrl(): Promise<LoadedModel> {
     fetchJson(`${base}schema/layout.schema.json`),
   ]);
 
-  if (!isRecord(modelRaw) || !isRecord(layoutRaw)) {
-    throw new ModelLoadError("model.json и layout.json должны быть JSON-объектами");
-  }
+  const schemas = compileSchemas({
+    model: modelSchema as AnySchema,
+    layout: layoutSchema as AnySchema,
+  });
+  const report = validateDraftValues(modelRaw, layoutRaw, schemas);
 
-  const schemaIssues: string[] = [];
-  const validateModelSchema = ajv.compile(modelSchema as AnySchema);
-  const validateLayoutSchema = ajv.compile(layoutSchema as AnySchema);
-
-  if (!validateModelSchema(modelRaw)) {
-    schemaIssues.push(...formatAjvErrors(validateModelSchema.errors));
-  }
-  if (!validateLayoutSchema(layoutRaw)) {
-    schemaIssues.push(...formatAjvErrors(validateLayoutSchema.errors));
-  }
-
-  const model = modelRaw as unknown as UmlgModel;
-  const layout = layoutRaw as unknown as UmlgLayout;
-  const semanticIssues: Issue[] = [...validateModel(model)];
-  semanticIssues.push(...validateLayout(model, layout, buildIndex(model)));
-
-  const errors = [
-    ...schemaIssues.map((message) => `schema: ${message}`),
-    ...semanticIssues
-      .filter((issue) => issue.level === "error")
-      .map((issue) => issue.message),
-  ];
-  const warnings = semanticIssues
-    .filter((issue) => issue.level === "warning")
-    .map((issue) => issue.message);
-
-  for (const warning of warnings) {
+  for (const warning of report.warnings) {
     console.warn(`[UMLG] ${warning}`);
   }
-
-  if (errors.length > 0) {
-    throw new ModelLoadError(`Модель не прошла валидацию (${errors.length})`, errors);
+  if (report.errors.length > 0) {
+    throw new ModelLoadError(`Модель не прошла валидацию (${report.errors.length})`, report.errors);
   }
 
-  return { model, layout, modelUrl, layoutUrl };
+  return {
+    model: report.model!,
+    layout: report.layout!,
+    modelUrl,
+    layoutUrl,
+    schemas,
+  };
 }

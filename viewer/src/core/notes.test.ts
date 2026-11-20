@@ -152,6 +152,22 @@ describe("NotesStore", () => {
     expect(store.size).toBe(0);
   });
 
+  it("switches the active namespace when a new model id is loaded", () => {
+    const storage = new MemoryStorage();
+    const store = new NotesStore(storage);
+    store.load("first-model");
+    store.set("m.program", "old note");
+
+    store.load("second-model");
+    expect(store.activeModelId).toBe("second-model");
+    expect(store.get("m.program")).toBe("");
+
+    store.set("m.program", "new note");
+    const first = new NotesStore(storage);
+    first.load("first-model");
+    expect(first.get("m.program")).toBe("old note");
+  });
+
   it("does not write without a loaded model", () => {
     const storage = new MemoryStorage();
     const store = new NotesStore(storage);

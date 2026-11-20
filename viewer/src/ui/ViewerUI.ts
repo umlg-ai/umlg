@@ -1,6 +1,15 @@
+import { canApplyDraft, draftFilename, parseDraft, type DraftReport } from "../core/draft";
 import { ModelGraph } from "../core/model";
 import { formatNotesCount } from "../core/notes";
-import type { Element, Link, Member, Relation, WorldId } from "../core/types";
+import type {
+  Element,
+  Link,
+  Member,
+  Relation,
+  UmlgLayout,
+  UmlgModel,
+  WorldId,
+} from "../core/types";
 import type { TransitionInfo } from "../transition/TransitionController";
 
 export type ReadingMode = "story" | "architecture";
@@ -22,6 +31,11 @@ export interface ViewerUIOptions {
   getNoteCount: () => number;
   onExportNotes: () => void;
   onImportNotes: (file: File) => void;
+  onCheckDraft: (modelText: string, layoutText: string) => DraftReport;
+  onApplyDraft: (model: UmlgModel, layout: UmlgLayout) => void;
+  getModelId: () => string;
+  onThemeChange?: (themeId: string) => void;
+  onProfileToggle?: (profileId: string, enabled: boolean) => void;
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -66,6 +80,8 @@ export class ViewerUI {
     phaseButton: document.querySelector<HTMLButtonElement>("#phase-button")!,
     phaseMeter: document.querySelector<HTMLElement>("#phase-meter-fill")!,
     modeToggle: document.querySelector<HTMLElement>("#mode-toggle")!,
+    themeToggle: document.querySelector<HTMLElement>("#theme-toggle"),
+    profileGraphicsGpu: document.querySelector<HTMLInputElement>("#profile-graphics-gpu"),
     density: document.querySelector<HTMLInputElement>("#density")!,
     reducedMotion: document.querySelector<HTMLInputElement>("#reduced-motion")!,
     resetCamera: document.querySelector<HTMLButtonElement>("#reset-camera")!,
@@ -80,6 +96,22 @@ export class ViewerUI {
     errorText: document.querySelector<HTMLElement>("#error-text")!,
     phaseVeil: document.querySelector<HTMLElement>("#phase-veil")!,
     phaseVeilLabel: document.querySelector<HTMLElement>("#phase-veil-label")!,
+    editorOpen: document.querySelector<HTMLButtonElement>("#editor-open")!,
+    editorOverlay: document.querySelector<HTMLElement>("#editor-overlay")!,
+    editorDrawer: document.querySelector<HTMLElement>("#editor-drawer")!,
+    editorClose: document.querySelector<HTMLButtonElement>("#editor-close")!,
+    editorTabModel: document.querySelector<HTMLButtonElement>("#editor-tab-model")!,
+    editorTabLayout: document.querySelector<HTMLButtonElement>("#editor-tab-layout")!,
+    editorPanelModel: document.querySelector<HTMLElement>("#editor-panel-model")!,
+    editorPanelLayout: document.querySelector<HTMLElement>("#editor-panel-layout")!,
+    editorModelInput: document.querySelector<HTMLTextAreaElement>("#editor-model-input")!,
+    editorLayoutInput: document.querySelector<HTMLTextAreaElement>("#editor-layout-input")!,
+    editorCheck: document.querySelector<HTMLButtonElement>("#editor-check")!,
+    editorApply: document.querySelector<HTMLButtonElement>("#editor-apply")!,
+    editorDownloadModel: document.querySelector<HTMLButtonElement>("#editor-download-model")!,
+    editorDownloadLayout: document.querySelector<HTMLButtonElement>("#editor-download-layout")!,
+    editorStatus: document.querySelector<HTMLElement>("#editor-status")!,
+    editorIssues: document.querySelector<HTMLElement>("#editor-issues")!,
   };
 
   private graph?: ModelGraph;
@@ -89,14 +121,23 @@ export class ViewerUI {
   private noteEditor?: HTMLTextAreaElement;
   private noteMeta?: HTMLElement;
   private noteMetaId: string | null = null;
+  private editorVisible = false;
+  private editorTrigger: HTMLElement | null = null;
+  private editorTab: "model" | "layout" = "model";
+  private editorValid = false;
 
   constructor(options: ViewerUIOptions) {
     this.options = options;
     this.bind();
   }
 
-  setModel(graph: ModelGraph, world: WorldId): void {
+  get isEditorOpen(): boolean {
+    return this.editorVisible;
+  }
+
+  setModel(graph: ModelGraph, world: WorldId, layout: UmlgLayout): void {
     this.graph = graph;
+    this.setEditorDocuments(graph.model, layout);
     this.setWorld(world);
   }
 
@@ -131,6 +172,19 @@ export class ViewerUI {
   setMode(mode: ReadingMode): void {
     for (const button of this.elements.modeToggle.querySelectorAll<HTMLButtonElement>("button")) {
       button.classList.toggle("active", button.dataset.mode === mode);
+    }
+  }
+
+  setTheme(themeId: string): void {
+    if (!this.elements.themeToggle) return;
+    for (const button of this.elements.themeToggle.querySelectorAll<HTMLButtonElement>("button")) {
+      button.classList.toggle("active", button.dataset.theme === themeId);
+    }
+  }
+
+  setProfileEnabled(profileId: string, enabled: boolean): void {
+    if (profileId === "graphics-gpu" && this.elements.profileGraphicsGpu) {
+      this.elements.profileGraphicsGpu.checked = enabled;
     }
   }
 
@@ -212,6 +266,25 @@ export class ViewerUI {
       });
     }
 
+    if (this.elements.themeToggle) {
+      for (const button of this.elements.themeToggle.querySelectorAll<HTMLButtonElement>("button")) {
+        button.addEventListener("click", () => {
+          const themeId = button.dataset.theme;
+          if (themeId) {
+            this.setTheme(themeId);
+            this.options.onThemeChange?.(themeId);
+          }
+        });
+      }
+    }
+
+    if (this.elements.profileGraphicsGpu) {
+      this.elements.profileGraphicsGpu.addEventListener("change", () => {
+        const enabled = this.elements.profileGraphicsGpu!.checked;
+        this.options.onProfileToggle?.("graphics-gpu", enabled);
+      });
+    }
+
     this.elements.density.addEventListener("input", () => {
       this.options.onDensityChange(Number(this.elements.density.value));
     });
@@ -228,6 +301,201 @@ export class ViewerUI {
       this.elements.notesImportFile.value = "";
       if (file) this.options.onImportNotes(file);
     });
+
+    this.bindEditor();
+  }
+
+  private bindEditor(): void {
+    this.elements.editorOpen.addEventListener("click", () => this.openEditor());
+    this.elements.editorClose.addEventListener("click", () => this.closeEditor());
+    this.elements.editorOverlay
+      .querySelector<HTMLElement>("[data-editor-close]")
+      ?.addEventListener("click", () => this.closeEditor());
+
+    this.elements.editorTabModel.addEventListener("click", () => this.selectEditorTab("model"));
+    this.elements.editorTabLayout.addEventListener("click", () => this.selectEditorTab("layout"));
+    for (const tab of [this.elements.editorTabModel, this.elements.editorTabLayout]) {
+      tab.addEventListener("keydown", (event) => this.onEditorTabKey(event));
+    }
+
+    for (const input of [this.elements.editorModelInput, this.elements.editorLayoutInput]) {
+      input.addEventListener("input", () => this.resetEditorResult());
+    }
+    this.elements.editorCheck.addEventListener("click", () => this.runCheck());
+    this.elements.editorApply.addEventListener("click", () => this.applyDraft());
+    this.elements.editorDownloadModel.addEventListener("click", () => this.downloadDraft("model"));
+    this.elements.editorDownloadLayout.addEventListener("click", () => this.downloadDraft("layout"));
+
+    document.addEventListener("keydown", (event) => {
+      if (!this.editorVisible) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.closeEditor();
+        return;
+      }
+      if (event.key === "Tab") this.trapEditorFocus(event);
+    });
+  }
+
+  /** Keeps Tab inside the modal; normal Tab order within the drawer is unchanged. */
+  private trapEditorFocus(event: KeyboardEvent): void {
+    const focusable = [
+      ...this.elements.editorDrawer.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), ' +
+          'select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ].filter((node) => node.tabIndex >= 0 && node.getClientRects().length > 0);
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (!this.elements.editorDrawer.contains(active)) {
+      event.preventDefault();
+      (event.shiftKey ? last : first).focus();
+    } else if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  private setEditorDocuments(model: UmlgModel, layout: UmlgLayout): void {
+    this.elements.editorModelInput.value = JSON.stringify(model, null, 2);
+    this.elements.editorLayoutInput.value = JSON.stringify(layout, null, 2);
+    this.resetEditorResult();
+  }
+
+  private openEditor(): void {
+    if (this.editorVisible) return;
+    this.editorTrigger =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.editorVisible = true;
+    this.elements.editorOverlay.hidden = false;
+    document.body.dataset.editorOpen = "true";
+    this.selectEditorTab(this.editorTab);
+    this.activeEditorInput().focus();
+  }
+
+  private closeEditor(): void {
+    if (!this.editorVisible) return;
+    this.editorVisible = false;
+    this.elements.editorOverlay.hidden = true;
+    delete document.body.dataset.editorOpen;
+    if (this.editorTrigger?.isConnected) this.editorTrigger.focus();
+    this.editorTrigger = null;
+  }
+
+  private activeEditorInput(): HTMLTextAreaElement {
+    return this.editorTab === "model"
+      ? this.elements.editorModelInput
+      : this.elements.editorLayoutInput;
+  }
+
+  private selectEditorTab(tab: "model" | "layout"): void {
+    this.editorTab = tab;
+    const model = tab === "model";
+    for (const [button, active] of [
+      [this.elements.editorTabModel, model],
+      [this.elements.editorTabLayout, !model],
+    ] as const) {
+      button.setAttribute("aria-selected", active ? "true" : "false");
+      button.tabIndex = active ? 0 : -1;
+    }
+    this.elements.editorPanelModel.hidden = !model;
+    this.elements.editorPanelLayout.hidden = model;
+  }
+
+  /** Arrow keys move between tabs; Tab keeps its normal document order. */
+  private onEditorTabKey(event: KeyboardEvent): void {
+    const target =
+      event.key === "ArrowLeft" || event.key === "Home"
+        ? "model"
+        : event.key === "ArrowRight" || event.key === "End"
+          ? "layout"
+          : null;
+    if (!target) return;
+    event.preventDefault();
+    this.selectEditorTab(target);
+    (target === "model" ? this.elements.editorTabModel : this.elements.editorTabLayout).focus();
+  }
+
+  private resetEditorResult(): void {
+    this.editorValid = false;
+    this.elements.editorApply.disabled = true;
+    this.elements.editorStatus.textContent = "";
+    this.elements.editorStatus.removeAttribute("data-state");
+    this.elements.editorIssues.replaceChildren();
+  }
+
+  private runCheck(): DraftReport {
+    const report = this.options.onCheckDraft(
+      this.elements.editorModelInput.value,
+      this.elements.editorLayoutInput.value,
+    );
+    this.showCheckReport(report);
+    return report;
+  }
+
+  private showCheckReport(report: DraftReport): void {
+    this.editorValid = canApplyDraft(report);
+    this.elements.editorApply.disabled = !this.editorValid;
+    this.elements.editorIssues.replaceChildren();
+    for (const warning of report.warnings) this.appendEditorIssue("warning", warning);
+    for (const error of report.errors) this.appendEditorIssue("error", error);
+
+    const { errors, warnings } = report;
+    if (errors.length > 0) {
+      this.elements.editorStatus.dataset.state = "error";
+      this.elements.editorStatus.textContent =
+        `Ошибок: ${errors.length}` + (warnings.length ? ` · предупреждений: ${warnings.length}` : "");
+    } else {
+      this.elements.editorStatus.dataset.state = "ok";
+      this.elements.editorStatus.textContent =
+        "Проверка пройдена" +
+        (warnings.length ? ` · предупреждений: ${warnings.length}` : "") +
+        ". Нажмите «Применить», чтобы обновить сцену.";
+    }
+  }
+
+  private appendEditorIssue(level: "error" | "warning", message: string): void {
+    const item = element("li", "", message);
+    item.dataset.level = level;
+    this.elements.editorIssues.append(item);
+  }
+
+  private applyDraft(): void {
+    // Re-check on activation so a stale report can never apply edited text.
+    const report = this.runCheck();
+    if (!canApplyDraft(report) || !report.model || !report.layout) return;
+    this.options.onApplyDraft(report.model, report.layout);
+    this.toast("Модель и раскладка применены к сцене.");
+    this.closeEditor();
+  }
+
+  private downloadDraft(kind: "model" | "layout"): void {
+    const text =
+      kind === "model" ? this.elements.editorModelInput.value : this.elements.editorLayoutInput.value;
+    const parsed = parseDraft(this.elements.editorModelInput.value, "model.json");
+    let modelId = this.options.getModelId();
+    if (parsed.ok && parsed.value !== null && typeof parsed.value === "object") {
+      const id = (parsed.value as { id?: unknown }).id;
+      if (typeof id === "string" && id.trim()) modelId = id;
+    }
+
+    const filename = draftFilename(modelId, kind);
+    const blob = new Blob([text], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    this.toast(`Скачано: ${filename}`);
   }
 
   /** Re-reads note marks after an import or a model change without rebuilding the inspector. */

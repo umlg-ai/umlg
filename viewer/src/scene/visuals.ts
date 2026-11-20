@@ -3,6 +3,9 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import type { Element, ElementKind } from "../core/types";
 import { ELEMENT_COLORS, kindLabel } from "./palette";
+import type { ThemeManager } from "../themes/registry";
+import type { ThemeContext } from "../themes/types";
+import { resolveEntityKind } from "../themes/resolve";
 
 export interface ElementVisualOptions {
   position: THREE.Vector3;
@@ -13,9 +16,10 @@ export interface ElementVisualOptions {
    * them from `materializes` / `deploys` / composition links, never from layout.
    */
   previewKinds?: ElementKind[];
+  themeManager?: ThemeManager;
 }
 
-const WHITE = new THREE.Color(0xffffff);
+const SELECTION_GREEN = new THREE.Color(0x00e676);
 
 function addEdges(
   group: THREE.Group,
@@ -513,11 +517,17 @@ export class ElementVisual {
   private density: number;
   private labelsVisible = true;
   private readonly baseScale = 1.45;
+  private readonly themeManager?: ThemeManager;
+  private readonly themeObject?: THREE.Group;
+  private readonly resolvedKind?: string;
+  private readonly themeCtx?: ThemeContext;
+  private readonly floatPhase: number;
 
   constructor(element: Element, options: ElementVisualOptions) {
     this.element = element;
     this.density = options.density;
     this.basePosition = options.position.clone();
+    this.floatPhase = (options.position.x * 0.73 + options.position.z * 0.51) % (Math.PI * 2);
     this.group = new THREE.Group();
     this.group.position.copy(options.position);
     this.group.userData.elementId = element.id;
@@ -633,7 +643,10 @@ export class ElementVisual {
     };
 
     const previewKinds = (options.previewKinds ?? []).slice(0, 5);
-    if (element.kind === "class" || element.kind === "component") {
+    const themeDrawsPreview = Boolean(
+      options.themeManager?.getActiveTheme().rendersPreview,
+    );
+    if (!themeDrawsPreview && (element.kind === "class" || element.kind === "component")) {
       const previewMaterials: FormMaterials = {
         surface: ghost(0.04),
         detail: ghost(0.06),
@@ -677,7 +690,37 @@ export class ElementVisual {
 
     let labelHeight = 0.95;
 
-    switch (element.kind) {
+    if (options.themeManager) {
+      this.themeManager = options.themeManager;
+      const { kind: resolvedKind, meta } = resolveEntityKind(element);
+      this.resolvedKind = resolvedKind;
+      this.themeCtx = {
+        world: element.world,
+        phaseProgress: 0,
+        selected: false,
+        meta: {
+          ...meta,
+          entityKind: element.kind,
+          materializedKind: previewKinds[0],
+        },
+      };
+      const themeObj = options.themeManager.createEntity(resolvedKind, this.themeCtx);
+      themeObj.userData.elementId = element.id;
+      themeObj.traverse((child) => {
+        child.userData.elementId = element.id;
+        if (child instanceof THREE.Mesh || child instanceof THREE.LineSegments) {
+          child.castShadow = !mental;
+          child.receiveShadow = !mental;
+          if (child instanceof THREE.Mesh) {
+            this.meshes.push(child);
+          }
+        }
+      });
+      this.themeObject = themeObj;
+      this.group.add(themeObj);
+      labelHeight = 1.05;
+    } else {
+      switch (element.kind) {
       case "class": {
         // A vitrine: a glass blueprint case holding the promise of the R twin.
         const plinth = roundedBox(1.8, 0.06, 1.4, 0.03);
@@ -911,6 +954,7 @@ export class ElementVisual {
         labelHeight = 0.9;
       }
     }
+  }
 
     const discMaterial = new THREE.MeshBasicMaterial({
       color,
@@ -942,7 +986,7 @@ export class ElementVisual {
     this.group.add(disc);
 
     this.selectionMaterial = new THREE.MeshBasicMaterial({
-      color: 0xa99bff,
+      color: 0x00e676,
       transparent: true,
       opacity: 0,
       depthWrite: false,
@@ -1019,12 +1063,26 @@ export class ElementVisual {
 
   setSelected(selected: boolean): void {
     this.selected = selected;
+    if (this.themeCtx) {
+      this.themeCtx.selected = selected;
+    }
     this.selectionMaterial.opacity = selected ? 0.85 : 0;
     this.labelElement.classList.toggle("selected", selected);
     this.group.scale.setScalar(selected ? this.baseScale * 1.06 : this.baseScale);
     this.applySelectionStyle();
     this.applyLabelVisibility();
     this.setDensity(this.density);
+  }
+
+  update(_now: number, elapsed: number): void {
+    if (this.themeManager && this.themeObject && this.resolvedKind && this.themeCtx) {
+      this.themeManager.updateEntity(this.themeObject, this.resolvedKind, this.themeCtx, elapsed);
+    }
+    if (this.element.world === "M") {
+      this.group.position.y = this.basePosition.y + Math.sin(elapsed * 1.6 + this.floatPhase) * 0.08;
+    } else {
+      this.group.position.y = this.basePosition.y;
+    }
   }
 
   private applySelectionStyle(): void {
@@ -1035,7 +1093,7 @@ export class ElementVisual {
       if (entry.color && entry.material.color) {
         entry.material.color.copy(entry.color);
         if (this.selected) {
-          entry.material.color.lerp(WHITE, 0.12);
+          entry.material.color.lerp(SELECTION_GREEN, 0.28);
         }
       }
     }

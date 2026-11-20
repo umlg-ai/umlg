@@ -1,11 +1,5 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
-import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 import { ModelGraph } from "../core/model";
 import type {
@@ -15,7 +9,8 @@ import type {
   UmlgModel,
   WorldId,
 } from "../core/types";
-import { WORLD_THEME } from "./palette";
+import { ThemeManager } from "../themes/registry";
+import { ThemeEnvironmentRenderer } from "../themes/environment-renderer";
 import { RelationVisual } from "./relations";
 import { ElementVisual } from "./visuals";
 
@@ -29,20 +24,15 @@ export class SceneManager {
   private readonly scene: THREE.Scene;
   private readonly camera: THREE.PerspectiveCamera;
   private readonly renderer: THREE.WebGLRenderer;
-  private readonly composer: EffectComposer;
-  private readonly bloomPass: UnrealBloomPass;
+  private readonly envRenderer: ThemeEnvironmentRenderer;
   private readonly labelRenderer: CSS2DRenderer;
   private readonly controls: OrbitControls;
-  private readonly grid: THREE.GridHelper;
-  private readonly floor: THREE.Mesh;
-  private readonly ambient: THREE.HemisphereLight;
-  private readonly keyLight: THREE.DirectionalLight;
-  private readonly rimLight: THREE.PointLight;
   private readonly selectionLight: THREE.PointLight;
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointer = new THREE.Vector2();
   private pointerDown: PointerPosition = { x: 0, y: 0 };
 
+  readonly themeManager: ThemeManager;
   private graph?: ModelGraph;
   private layout?: UmlgLayout;
   private worldGroup?: THREE.Group;
@@ -53,7 +43,6 @@ export class SceneManager {
   private density = 0.7;
   private architectureMode = false;
   private cameraInitialized = false;
-  private readonly backgrounds = new Map<WorldId, THREE.Texture>();
 
   onSelect?: (id: string) => void;
   onWorldChange?: (world: WorldId) => void;
@@ -77,15 +66,6 @@ export class SceneManager {
     this.renderer.setClearColor(0x050814, 1);
     container.appendChild(this.renderer.domElement);
 
-    // One neutral studio environment gives PBR materials real reflections;
-    // the world theme tints the lights, not the environment map.
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    const environmentScene = new RoomEnvironment();
-    this.scene.environment = pmrem.fromScene(environmentScene, 0.04).texture;
-    this.scene.environmentIntensity = 0.35;
-    environmentScene.dispose();
-    pmrem.dispose();
-
     this.labelRenderer = new CSS2DRenderer();
     this.labelRenderer.domElement.style.position = "absolute";
     this.labelRenderer.domElement.style.top = "0";
@@ -100,75 +80,21 @@ export class SceneManager {
     this.controls.maxDistance = 140;
     this.controls.target.set(0, 2, -24);
 
-    this.ambient = new THREE.HemisphereLight(0x8cc8ff, 0x111122, 1.4);
-    this.scene.add(this.ambient);
-
-    this.keyLight = new THREE.DirectionalLight(0xffffff, 2.6);
-    this.keyLight.position.set(10, 24, 12);
-    this.keyLight.castShadow = true;
-    this.keyLight.shadow.mapSize.set(2048, 2048);
-    this.keyLight.shadow.camera.near = 1;
-    this.keyLight.shadow.camera.far = 140;
-    this.keyLight.shadow.camera.left = -45;
-    this.keyLight.shadow.camera.right = 45;
-    this.keyLight.shadow.camera.top = 45;
-    this.keyLight.shadow.camera.bottom = -45;
-    this.keyLight.shadow.bias = -0.0004;
-    this.keyLight.shadow.normalBias = 0.02;
-    this.keyLight.shadow.radius = 3;
-    this.scene.add(this.keyLight);
-
-    this.rimLight = new THREE.PointLight(0x5f7cff, 380, 120, 2);
-    this.rimLight.position.set(-18, 16, -24);
-    this.scene.add(this.rimLight);
-
-    this.selectionLight = new THREE.PointLight(0x9fd4ff, 0, 7, 2);
+    this.selectionLight = new THREE.PointLight(0x00e676, 0, 5, 2);
     this.selectionLight.position.set(0, 1.0, 0);
     this.scene.add(this.selectionLight);
 
-    this.grid = new THREE.GridHelper(150, 75, 0x1b2a48, 0x2f4c7a);
-    this.grid.position.y = -1;
-    this.scene.add(this.grid);
+    this.themeManager = new ThemeManager("industrial-v1");
 
-    this.floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(620, 620),
-      new THREE.MeshStandardMaterial({
-        color: 0x060912,
-        roughness: 0.62,
-        metalness: 0.35,
-        transparent: true,
-        opacity: 0.72,
-      }),
+    this.envRenderer = new ThemeEnvironmentRenderer(this.renderer, this.scene, this.camera);
+    this.envRenderer.applyEnvironment(
+      this.themeManager.getEnvironment(this.currentWorld),
+      this.currentWorld,
     );
-    this.floor.rotation.x = -Math.PI / 2;
-    this.floor.position.y = -1.02;
-    this.floor.receiveShadow = true;
-    this.scene.add(this.floor);
-
-    this.composer = new EffectComposer(this.renderer);
-    this.composer.addPass(new RenderPass(this.scene, this.camera));
-    const gtao = new GTAOPass(this.scene, this.camera);
-    gtao.blendIntensity = 0.75;
-    gtao.updateGtaoMaterial({
-      radius: 0.9,
-      distanceExponent: 1.4,
-      thickness: 1.2,
-      scale: 1.0,
-    });
-    this.composer.addPass(gtao);
-    this.bloomPass = new UnrealBloomPass(
-      new THREE.Vector2(1, 1),
-      0.32,
-      0.45,
-      1.0,
-    );
-    this.composer.addPass(this.bloomPass);
-    this.composer.addPass(new OutputPass());
 
     this.bindPointerEvents();
     this.resize();
     new ResizeObserver(() => this.resize()).observe(container);
-    this.applyTheme("M");
   }
 
   get world(): WorldId {
@@ -226,6 +152,7 @@ export class SceneManager {
         density: this.density,
         onSelect: (id) => this.select(id, false),
         previewKinds: this.graph.previewKinds(element.id),
+        themeManager: this.themeManager,
       });
       group.add(visual.group);
       visual.setLabelVisible(this.architectureMode);
@@ -242,6 +169,7 @@ export class SceneManager {
         to,
         world,
         density: this.density,
+        themeManager: this.themeManager,
       });
       group.add(visual.group);
       this.relationVisuals.push(visual);
@@ -251,7 +179,7 @@ export class SceneManager {
     this.worldGroup = group;
     this.scene.add(group);
     this.currentWorld = world;
-    this.applyTheme(world);
+    this.envRenderer.applyEnvironment(this.themeManager.getEnvironment(world), world);
 
     this.selectedId = null;
     if (selectId && this.visuals.has(selectId)) {
@@ -273,8 +201,8 @@ export class SceneManager {
     this.selectedId = id;
     visual.setSelected(true);
     this.selectionLight.position.copy(visual.basePosition).add(new THREE.Vector3(0, 1.0, 0));
-    this.selectionLight.color.set(this.currentWorld === "M" ? 0x9fd4ff : 0xffb168);
-    this.selectionLight.intensity = this.currentWorld === "M" ? 3.5 : 4.5;
+    this.selectionLight.color.set(this.currentWorld === "M" ? 0x00ff88 : 0x00e676);
+    this.selectionLight.intensity = this.currentWorld === "M" ? 3.0 : 3.8;
     for (const relation of this.relationVisuals) {
       relation.setHighlighted(relation.connect(id));
     }
@@ -367,10 +295,14 @@ export class SceneManager {
 
   update(now: number): void {
     this.controls.update();
-    for (const relation of this.relationVisuals) {
-      relation.animate(now);
+    const elapsed = now * 0.001;
+    for (const visual of this.visuals.values()) {
+      visual.update(now, elapsed);
     }
-    this.composer.render();
+    for (const relation of this.relationVisuals) {
+      relation.animate(now, elapsed);
+    }
+    this.envRenderer.render();
     this.labelRenderer.render(this.scene, this.camera);
   }
 
@@ -427,65 +359,27 @@ export class SceneManager {
     return new THREE.Vector3(x, 0, z);
   }
 
-  private applyTheme(world: WorldId): void {
-    const theme = WORLD_THEME[world];
-    this.scene.background = this.backgroundTexture(world);
-    this.scene.fog = new THREE.Fog(theme.fog, 60, 210);
-    this.renderer.setClearColor(theme.background, 1);
-
-    this.ambient.color.set(theme.light);
-    this.ambient.groundColor.set(world === "M" ? 0x111427 : 0x1f1008);
-    this.ambient.intensity = world === "M" ? 0.95 : 0.8;
-    this.keyLight.color.set(world === "M" ? 0xd6ebff : 0xffd9b8);
-    this.keyLight.intensity = world === "M" ? 1.9 : 2.1;
-    this.rimLight.color.set(world === "M" ? theme.warm : 0x5d7dff);
-    this.rimLight.intensity = world === "M" ? 380 : 340;
-    this.scene.environmentIntensity = world === "M" ? 0.26 : 0.42;
-
-    const gridMaterials = Array.isArray(this.grid.material)
-      ? this.grid.material
-      : [this.grid.material];
-    gridMaterials.forEach((material, index) => {
-      if (material instanceof THREE.LineBasicMaterial) {
-        material.color.set(index === 0 ? theme.grid : theme.gridAccent);
-        material.transparent = true;
-        material.opacity = world === "M" ? 0.4 : 0.3;
-      }
-    });
-
-    const floorMaterial = this.floor.material;
-    if (floorMaterial instanceof THREE.MeshStandardMaterial) {
-      floorMaterial.color.set(theme.background);
-      floorMaterial.opacity = world === "M" ? 0.35 : 0.72;
+  setTheme(themeId: string): void {
+    if (this.themeManager.setTheme(themeId)) {
+      this.envRenderer.applyEnvironment(
+        this.themeManager.getEnvironment(this.currentWorld),
+        this.currentWorld,
+      );
+      this.showWorld(this.currentWorld, this.selectedId);
     }
   }
 
-  private backgroundTexture(world: WorldId): THREE.Texture {
-    const cached = this.backgrounds.get(world);
-    if (cached) return cached;
+  setProfileEnabled(profileId: string, enabled: boolean): void {
+    this.themeManager.setProfileEnabled(profileId, enabled);
+    this.showWorld(this.currentWorld, this.selectedId);
+  }
 
-    const theme = WORLD_THEME[world];
-    const canvas = document.createElement("canvas");
-    canvas.width = 4;
-    canvas.height = 512;
-    const context = canvas.getContext("2d");
-    if (context) {
-      const base = new THREE.Color(theme.background);
-      const top = base.clone().lerp(new THREE.Color(theme.light), 0.14);
-      const bottom = base.clone().multiplyScalar(0.45);
-      const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
-      gradient.addColorStop(0, `#${top.getHexString()}`);
-      gradient.addColorStop(0.58, `#${base.getHexString()}`);
-      gradient.addColorStop(1, `#${bottom.getHexString()}`);
-      context.fillStyle = gradient;
-      context.fillRect(0, 0, canvas.width, canvas.height);
-    }
+  get activeThemeId(): string {
+    return this.themeManager.getActiveTheme().id;
+  }
 
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.needsUpdate = true;
-    this.backgrounds.set(world, texture);
-    return texture;
+  isProfileEnabled(profileId: string): boolean {
+    return this.themeManager.isProfileEnabled(profileId);
   }
 
   private disposeWorldGroup(): void {
@@ -506,9 +400,7 @@ export class SceneManager {
     const height = this.container.clientHeight || window.innerHeight;
     this.camera.aspect = width / Math.max(1, height);
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(width, height, false);
-    this.composer.setSize(width, height);
-    this.bloomPass.setSize(width, height);
+    this.envRenderer.onResize(width, height);
     this.labelRenderer.setSize(width, height);
   }
 }

@@ -1,7 +1,8 @@
-import { ModelGraph } from "./core/model";
+import { applyWorld, validateDraftTexts } from "./core/draft";
 import { loadModelFromUrl, ModelLoadError } from "./core/load";
+import { ModelGraph } from "./core/model";
 import { formatNotesCount } from "./core/notes";
-import type { WorldId } from "./core/types";
+import type { CompiledSchemas, UmlgModel, WorldId } from "./core/types";
 import { SceneManager } from "./scene/SceneManager";
 import { TransitionController } from "./transition/TransitionController";
 import { NotesStore } from "./ui/NotesStore";
@@ -47,6 +48,8 @@ async function main(): Promise<void> {
   let reducedMotion = reducedMotionQuery.matches;
   let mode: ReadingMode = "story";
   let graph: ModelGraph | undefined;
+  let currentModel: UmlgModel | undefined;
+  let compiledSchemas: CompiledSchemas | undefined;
   const notes = new NotesStore(safeStorage());
   let storageWarned = false;
 
@@ -107,6 +110,33 @@ async function main(): Promise<void> {
     getNoteCount: () => notes.size,
     onExportNotes: () => exportNotes(),
     onImportNotes: (file) => void importNotes(file),
+    onCheckDraft: (modelText, layoutText) => {
+      if (!compiledSchemas) return { errors: ["Схемы ещё не загружены."], warnings: [] };
+      return validateDraftTexts(modelText, layoutText, compiledSchemas);
+    },
+    onApplyDraft: (model, layout) => {
+      const world = applyWorld(scene.world, model);
+      const selected = scene.selected;
+      const keepSelected = Boolean(
+        selected && model.elements?.some((item) => item.id === selected && item.world === world),
+      );
+
+      // The draft is already validated; only the in-memory documents change.
+      currentModel = model;
+      if (notes.activeModelId !== model.id) notes.load(model.id);
+      graph = new ModelGraph(model);
+      ui.setModel(graph, world, layout);
+      scene.setData(model, layout);
+      scene.showWorld(world, keepSelected ? selected : null);
+      // setData keeps the existing camera; an edited layout camera must take effect.
+      scene.resetCamera();
+      scene.setDensity(ui.densityValue);
+      applyMode();
+      ui.refreshNotes(true);
+    },
+    getModelId: () => currentModel?.id ?? "model",
+    onThemeChange: (themeId) => scene.setTheme(themeId),
+    onProfileToggle: (profileId, enabled) => scene.setProfileEnabled(profileId, enabled),
   });
 
   const exportNotes = (): void => {
@@ -170,6 +200,8 @@ async function main(): Promise<void> {
   ui.setReducedMotion(reducedMotion);
   ui.setDensityValue(0.7);
   ui.setMode(mode);
+  ui.setTheme(scene.activeThemeId);
+  ui.setProfileEnabled("graphics-gpu", scene.isProfileEnabled("graphics-gpu"));
   document.body.dataset.mode = mode;
   document.body.dataset.reducedMotion = reducedMotion ? "true" : "false";
 
@@ -188,13 +220,13 @@ async function main(): Promise<void> {
     if (event.code !== "KeyP" || event.repeat || event.metaKey || event.ctrlKey || event.altKey) {
       return;
     }
-    if (isTypingTarget(event.target)) return;
+    if (ui.isEditorOpen || isTypingTarget(event.target)) return;
     event.preventDefault();
     transition.press(phaseTarget());
   });
   window.addEventListener("keyup", (event) => {
     if (event.code !== "KeyP") return;
-    if (isTypingTarget(event.target)) return;
+    if (ui.isEditorOpen || isTypingTarget(event.target)) return;
     transition.release();
   });
   window.addEventListener("blur", () => transition.release());
@@ -202,10 +234,12 @@ async function main(): Promise<void> {
   try {
     ui.setLoading(true, "Загружаю модель и проверяю инварианты…");
     const loaded = await loadModelFromUrl();
+    currentModel = loaded.model;
+    compiledSchemas = loaded.schemas;
     graph = new ModelGraph(loaded.model);
     notes.load(loaded.model.id);
     scene.setData(loaded.model, loaded.layout);
-    ui.setModel(graph, "M");
+    ui.setModel(graph, "M", loaded.layout);
     ui.refreshNotes();
     ui.setLoading(false);
     ui.setWorld("M");

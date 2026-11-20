@@ -2,12 +2,16 @@ import * as THREE from "three";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import type { Relation } from "../core/types";
 import { RELATION_COLORS } from "./palette";
+import type { ThemeManager } from "../themes/registry";
+import type { CoreLinkKind, ThemeContext } from "../themes/types";
+import { resolveLinkKind } from "../themes/resolve";
 
 export interface RelationVisualOptions {
   from: THREE.Vector3;
   to: THREE.Vector3;
   world: "M" | "R";
   density: number;
+  themeManager?: ThemeManager;
 }
 
 function edgeMaterial(
@@ -48,6 +52,10 @@ export class RelationVisual {
   private density: number;
   private highlighted = false;
   private labelVisible = false;
+  private readonly themeManager?: ThemeManager;
+  private readonly themeLink?: THREE.Group;
+  private readonly linkKind?: CoreLinkKind;
+  private readonly themeCtx?: ThemeContext;
 
   constructor(relation: Relation, options: RelationVisualOptions) {
     this.relation = relation;
@@ -72,12 +80,24 @@ export class RelationVisual {
     const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
     this.material = edgeMaterial(color, dashed, opacity);
     this.baseLineColor = new THREE.Color(color);
-    const line = new THREE.Line(geometry, this.material);
-    if (dashed) {
-      line.computeLineDistances();
+
+    if (options.themeManager) {
+      this.themeManager = options.themeManager;
+      this.linkKind = resolveLinkKind(relation.kind);
+      this.themeCtx = { world: options.world, phaseProgress: 0 };
+      const mid = new THREE.Vector3().lerpVectors(start, end, 0.5);
+      mid.y += Math.min(1.2, length * 0.12);
+      const points = [start, mid, end];
+      this.themeLink = options.themeManager.createLink(this.linkKind, points, this.themeCtx);
+      this.group.add(this.themeLink);
+    } else {
+      const line = new THREE.Line(geometry, this.material);
+      if (dashed) {
+        line.computeLineDistances();
+      }
+      line.renderOrder = 1;
+      this.group.add(line);
     }
-    line.renderOrder = 1;
-    this.group.add(line);
 
     if (
       relation.kind === "inheritance" ||
@@ -195,7 +215,11 @@ export class RelationVisual {
     }
   }
 
-  animate(now: number): void {
+  animate(now: number, elapsed?: number): void {
+    const sec = elapsed ?? now * 0.001;
+    if (this.themeManager && this.themeLink && this.linkKind && this.themeCtx) {
+      this.themeManager.updateLink(this.themeLink, this.linkKind, this.themeCtx, sec);
+    }
     if (!this.pulse) return;
     const t = (now * 0.001 * this.pulseSpeed + this.pulsePhase) % 1;
     this.pulse.position.copy(this.from.clone().lerp(this.to, t));
