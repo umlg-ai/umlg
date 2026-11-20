@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Overlay Compare — Reference vs Reconstruction</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'IBM Plex Mono',monospace;background:#111;color:#ddd;overflow:hidden;height:100vh}
+  #wrap{position:relative;width:100vw;height:100vh}
+  /* Three.js canvas fills screen */
+  #three-canvas{position:absolute;inset:0;display:block}
+  /* Reference image overlay */
+  #ref-img{
+    position:absolute;inset:0;
+    width:100%;height:100%;
+    object-fit:contain;
+    pointer-events:none;
+    mix-blend-mode:normal;
+    opacity:0.5;
+    transition:opacity 0.1s;
+    background:#000;
+  }
+  /* UI Bar */
+  #ui{
+    position:absolute;top:12px;left:12px;right:12px;z-index:100;
+    display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+    pointer-events:auto;
+  }
+  .btn{
+    background:#1e1e1e;border:1px solid #333;color:#ccc;
+    padding:8px 14px;font-family:inherit;font-size:11px;letter-spacing:0.5px;
+    text-transform:uppercase;cursor:pointer;transition:.15s
+  }
+  .btn:hover{background:#2a2a2a;border-color:#555;color:#fff}
+  .btn.active{background:#E5AA54;border-color:#E5AA54;color:#111}
+  .slider-wrap{display:flex;align-items:center;gap:8px;color:#888;font-size:11px;flex:1;min-width:200px}
+  input[type=range]{flex:1;accent-color:#E5AA54}
+  .drop-hint{color:#555;font-size:11px;margin-left:auto}
+  @media(max-width:700px){.drop-hint{display:none}}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<div id="wrap">
+  <canvas id="three-canvas"></canvas>
+  <img id="ref-img" src="" alt="Reference" style="display:none">
+  <div id="ui">
+    <button class="btn" data-view="0" id="v0">01 Isometric</button>
+    <button class="btn" data-view="1" id="v1">02 Front</button>
+    <button class="btn" data-view="2" id="v2">03 End</button>
+    <div class="slider-wrap">
+      <span>Overlay Opacity</span>
+      <input type="range" id="opacity" min="0" max="100" value="50">
+      <span id="opacity-val">50%</span>
+    </div>
+    <span class="drop-hint">Drag reference image anywhere →</span>
+  </div>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.165.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.165.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+
+// ─── Palette & Dimensions (same as reconstructed_vkbuffer.html) ─────
+const PALETTE={matteCap:0xEAE6DF,cmdTile1:0xE5AA54,cmdTile2:0x91A488,branding:0x2D2D2D,frostedTint:0xF5F5F3,background:0xF2F2F0};
+const DIM={sleeveOuterRadius:1.6,sleeveInnerRadius:1.35,sleeveLength:12.0,sleeveRoundRadius:0.25,capThickness:0.6,capOuterRadius:1.6,capInnerRadius:1.35,chevronDepth:0.12,chevronSize:0.7,keyCount:3,keyWidth:0.08,keyDepth:0.1,keyHeight:0.9,keySpacing:0.35,slotCount:8,slotWidth:0.85,slotHeight:1.1,slotDepth:0.9,slotRadius:0.12,wideSlotWidth:1.5,slotGap:0.15};
+
+// ─── Three.js ───────────────────────────────────────────────────────
+const canvas=document.getElementById('three-canvas');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.15;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(PALETTE.background);
+
+const camera=new THREE.PerspectiveCamera(35,innerWidth/innerHeight,0.1,100);
+camera.position.set(8,6,10);
+
+const controls=new OrbitControls(camera,canvas);
+controls.enableDamping=true;controls.dampingFactor=0.05;
+controls.minDistance=5;controls.maxDistance=30;
+controls.target.set(0,0.2,0);
+
+// Lights
+scene.add(new THREE.AmbientLight(0xffffff,0.45));
+const key=new THREE.DirectionalLight(0xffffff,1.8);
+key.position.set(-6,8,4);key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);
+key.shadow.camera.near=0.5;key.shadow.camera.far=30;
+key.shadow.camera.left=-8;key.shadow.camera.right=8;
+key.shadow.camera.top=8;key.shadow.camera.bottom=-8;
+key.shadow.bias=-0.0005;key.shadow.normalBias=0.02;key.shadow.radius=4;
+scene.add(key);
+scene.add(new THREE.DirectionalLight(0xffffff,0.7).position.set(5,4,-5));
+scene.add(new THREE.DirectionalLight(0xffffff,0.5).position.set(0,-3,-8));
+scene.add(new THREE.DirectionalLight(0xffffff,1.0).position.set(0,10,0));
+
+// Env
+const pmrem=new THREE.PMREMGenerator(renderer);
+const envScene=new THREE.Scene();
+envScene.add(new THREE.Mesh(new THREE.BoxGeometry(40,20,40),new THREE.MeshBasicMaterial({color:0xF2F2F0,side:THREE.BackSide})));
+const card=new THREE.Mesh(new THREE.PlaneGeometry(30,30),new THREE.MeshBasicMaterial({color:0xFFFFFF,side:THREE.DoubleSide,transparent:true,opacity:0.8}));
+card.position.set(0,15,-15);card.rotation.x=-Math.PI/2;envScene.add(card);
+scene.environment=pmrem.fromScene(envScene).texture;
+
+// Materials
+const matteCap=new THREE.MeshPhysicalMaterial({color:PALETTE.matteCap,roughness:0.95,metalness:0,envMapIntensity:0.3});
+const cmd1=new THREE.MeshPhysicalMaterial({color:PALETTE.cmdTile1,roughness:0.85,metalness:0.05,envMapIntensity:0.2});
+const cmd2=new THREE.MeshPhysicalMaterial({color:PALETTE.cmdTile2,roughness:0.85,metalness:0.05,envMapIntensity:0.2});
+const frosted=new THREE.MeshPhysicalMaterial({color:PALETTE.frostedTint,roughness:0.98,metalness:0,transmission:0.45,thickness:0.5,ior:1.45,clearcoat:0.05,clearcoatRoughness:0.9,envMapIntensity:0.4,transparent:true,opacity:0.92,attenuationDistance:3,attenuationColor:new THREE.Color(0xF5F5F3)});
+
+// Helpers
+function roundedBox(w,h,d,r){
+  const s=new THREE.Shape(),R=r,W=w/2,H=h/2;
+  s.moveTo(-W+R,-H);s.lineTo(W-R,-H);s.quadraticCurveTo(W,-H,W,-H+R);
+  s.lineTo(W,H-R);s.quadraticCurveTo(W,H,W-R,H);s.lineTo(-W+R,H);
+  s.quadraticCurveTo(-W,H,-W,H-R);s.lineTo(-W,-H+R);s.quadraticCurveTo(-W,-H,-W+R,-H);
+  return new THREE.ExtrudeGeometry(s,{depth:d,bevelEnabled:true,bevelSegments:8,bevelSize:R,bevelThickness:R,curveSegments:8});
+}
+
+// Build Unit
+const unit=new THREE.Group();
+const sleeve=new THREE.Group();
+const outer=new THREE.Mesh(new THREE.CylinderGeometry(DIM.sleeveOuterRadius,DIM.sleeveOuterRadius,DIM.sleeveLength,64,1,true),frosted);
+outer.castShadow=outer.receiveShadow=true;sleeve.add(outer);
+const torusGeo=new THREE.TorusGeometry(DIM.sleeveOuterRadius,DIM.sleeveRoundRadius,16,32,Math.PI);
+[1,-1].forEach(s=>{const m=new THREE.Mesh(torusGeo,frosted);m.rotation.x=Math.PI/2*s;m.position.y=DIM.sleeveLength/2*s;sleeve.add(m)});
+const inner=new THREE.Mesh(new THREE.CylinderGeometry(DIM.sleeveInnerRadius,DIM.sleeveInnerRadius,DIM.sleeveLength-DIM.sleeveRoundRadius*2,64,1,true),frosted.clone());
+inner.material.side=THREE.BackSide;inner.material.transmission=0.3;inner.material.opacity=0.85;sleeve.add(inner);
+unit.add(sleeve);
+
+// End caps
+function cap(front){
+  const g=new THREE.Group();
+  const c=new THREE.Mesh(new THREE.CylinderGeometry(DIM.capOuterRadius,DIM.capOuterRadius,DIM.capThickness,64,1,false),matteCap);
+  c.castShadow=c.receiveShadow=true;g.add(c);
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(DIM.capInnerRadius,DIM.capInnerRadius,DIM.capThickness+0.02,64,1,false),matteCap.clone().side=THREE.BackSide));
+  // chevron
+  const s=DIM.chevronSize,d=DIM.chevronDepth,sh=new THREE.Shape();
+  sh.moveTo(-s*0.6,-s*0.5);sh.lineTo(0,0);sh.lineTo(-s*0.6,s*0.5);
+  sh.lineTo(-s*0.45,s*0.5);sh.lineTo(-0.05,0);sh.lineTo(-s*0.45,-s*0.5);sh.lineTo(-s*0.6,-s*0.5);
+  const cg=new THREE.ExtrudeGeometry(sh,{depth:d,bevelEnabled:false});cg.translate(s*0.3,0,-d);
+  const cm=new THREE.Mesh(cg,matteCap);cm.castShadow=cm.receiveShadow=true;
+  cm.position.z=front?DIM.capThickness/2+0.01:-DIM.capThickness/2-0.01;
+  if(!front)cm.rotation.z=Math.PI;g.add(cm);
+  // keys
+  [-1,1].forEach(side=>{for(let i=0;i<DIM.keyCount;i++){const y=(i-(DIM.keyCount-1)/2)*DIM.keySpacing;
+    const km=new THREE.Mesh(new THREE.BoxGeometry(DIM.capThickness+0.02,DIM.keyHeight,DIM.keyWidth),matteCap);
+    km.position.set(side*(DIM.capThickness/2+0.01),y,0);km.castShadow=km.receiveShadow=true;g.add(km);
+  }});
+  g.position.x=front?DIM.sleeveLength/2:-DIM.sleeveLength/2;return g;
+}
+unit.add(cap(true));unit.add(cap(false));
+
+// Memory slots
+const slots=new THREE.Group();
+const defs=[{w:DIM.wideSlotWidth,m:cmd1,t:['>_','CMD_001'],wide:true},{w:DIM.slotWidth,m:cmd1,t:[],wide:false},{w:DIM.slotWidth,m:cmd1,t:[],wide:false},{w:DIM.slotWidth,m:cmd1,t:[],wide:false},{w:DIM.slotWidth,m:cmd2,t:['CMD_002'],wide:false},{w:DIM.slotWidth,m:cmd2,t:['CMD_003'],wide:false},{w:DIM.slotWidth,m:cmd2,t:['CMD_004'],wide:false},{w:DIM.slotWidth,m:cmd2,t:[],wide:false}];
+let total=defs.reduce((a,s)=>a+s.w,0)+DIM.slotGap*(defs.length-1),cx=-total/2;
+defs.forEach(s=>{const g=new THREE.Group();const geo=roundedBox(s.w,DIM.slotHeight,DIM.slotDepth,DIM.slotRadius);geo.translate(0,0,DIM.slotDepth/2);
+  const m=new THREE.Mesh(geo,s.m);m.castShadow=m.receiveShadow=true;g.add(m);
+  s.t.forEach((txt,mi)=>{const cnv=document.createElement('canvas');cnv.width=cnv.height=512;const ctx=cnv.getContext('2d');ctx.fillStyle='#2D2D2D';ctx.font='bold 180px "IBM Plex Mono",monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,256,256);const tex=new THREE.CanvasTexture(cnv);tex.colorSpace=THREE.SRGBColorSpace;const mm=new THREE.MeshPhysicalMaterial({map:tex,transparent:true,roughness:0.9,depthWrite:false});const mg=new THREE.Mesh(new THREE.PlaneGeometry(s.w*0.85,DIM.slotHeight*0.6),mm);mg.position.set(0,0,DIM.slotDepth/2+0.015);mg.rotation.x=-Math.PI/2;if(!s.wide)mg.rotation.z=Math.PI/2;g.add(mg);});
+  g.position.x=cx+s.w/2;cx+=s.w+DIM.slotGap;slots.add(g);});
+slots.position.y=0.05;sleeve.add(slots);
+
+// Branding
+const brand=new THREE.Group();const cnv=document.createElement('canvas');cnv.width=2048;cnv.height=512;const ctx=cnv.getContext('2d');ctx.fillStyle='#2D2D2D';ctx.font='bold 300px "IBM Plex Mono",monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('>_ VkBuffer',1024,256);
+const btex=new THREE.CanvasTexture(cnv);btex.colorSpace=THREE.SRGBColorSpace;
+const bmat=new THREE.MeshPhysicalMaterial({map:btex,transparent:true,roughness:0.9,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
+const bg=new THREE.PlaneGeometry(DIM.sleeveLength*0.9,DIM.sleeveOuterRadius*1.2);
+const top=new THREE.Mesh(bg,bmat);top.position.set(0,DIM.sleeveOuterRadius+0.01,0);top.rotation.x=-Math.PI/2;brand.add(top);
+const side=new THREE.Mesh(new THREE.PlaneGeometry(DIM.sleeveLength*0.6,DIM.sleeveOuterRadius*0.6),bmat.clone());side.position.set(0,0,DIM.sleeveOuterRadius+0.01);side.rotation.y=-Math.PI/2;brand.add(side);
+unit.add(brand);
+
+scene.add(unit);
+scene.add(new THREE.Mesh(new THREE.PlaneGeometry(50,50),new THREE.MeshPhysicalMaterial({color:0xF2F2F0,roughness:0.9})).rotation.x=-Math.PI/2).position.y=-DIM.sleeveOuterRadius-DIM.capThickness-0.1;
+
+// Views
+const views=[{pos:new THREE.Vector3(10,7,10),tgt:new THREE.Vector3(0,0.2,0)},{pos:new THREE.Vector3(0,0.2,14),tgt:new THREE.Vector3(0,0.2,0)},{pos:new THREE.Vector3(14,0.2,0),tgt:new THREE.Vector3(0,0.2,0)}];
+let cv=0;const btns=[v0,v1,v2].map((b,i)=>{b.onclick=()=>setView(i);return b;});
+function setView(i){cv=i;btns.forEach((b,j)=>b.classList.toggle('active',j===i));animateCam(views[i].pos,views[i].tgt);}
+function animateCam(tp,tt){const sp=camera.position.clone(),st=controls.target.clone(),t0=performance.now(),dur=800;function step(t){const p=Math.min((t-t0)/dur,1),e=1-(1-p)**3;camera.position.lerpVectors(sp,tp,e);controls.target.lerpVectors(st,tt,e);controls.update();if(p<1)requestAnimationFrame(step);}requestAnimationFrame(step);}
+
+// Opacity
+const ref=document.getElementById('ref-img'),op=document.getElementById('opacity'),ov=document.getElementById('opacity-val');
+op.oninput=()=>{ref.style.display==='block'&&(ref.style.opacity=op.value/100,ov.textContent=op.value+'%')};
+
+// Drag-drop
+window.addEventListener('dragover',e=>e.preventDefault());
+window.addEventListener('drop',e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f?.type.startsWith('image/'))loadRef(URL.createObjectURL(f))});
+window.addEventListener('paste',e=>{const f=e.clipboardData.files[0];if(f?.type.startsWith('image/'))loadRef(URL.createObjectURL(f))});
+function loadRef(url){ref.onload=()=>{ref.style.display='block';ref.style.opacity=op.value/100};ref.src=url}
+
+// Resize
+new ResizeObserver(()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}).observe(canvas);
+
+// Keys
+addEventListener('keydown',e=>{if(e.key>='1'&&e.key<='3')setView(+e.key-1)});
+
+// Render
+function loop(){requestAnimationFrame(loop);controls.update();renderer.render(scene,camera)}loop();
+</script>
+</body>
+</html>
