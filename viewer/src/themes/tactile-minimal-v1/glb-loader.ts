@@ -45,24 +45,27 @@ export const TAG_TO_GLB: Record<string, string> = {
   'gpu:Texture': 'vk_texture.glb',
 };
 
-function fetchGlb(filename: string): Promise<THREE.Group> {
-  if (!modelCache.has(filename)) {
-    const url = new URL(`./tactile_glb/${filename}`, import.meta.url).href;
-    const promise = loader.loadAsync(url).then((gltf) => {
-      const root = gltf.scene;
-      // Включаем тени для всех мешей модели
-      root.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
-      return root;
+  fetchGlb(filename)
+    .then((source) => {
+      const instance = prepareGlbInstance(source, mats, isPreview);
+
+      if (container.userData.elementId) {
+        instance.traverse((child) => {
+          child.userData.elementId = container.userData.elementId;
+        });
+      }
+
+      container.remove(fallbackGroup);
+      container.add(instance);
+      container.dispatchEvent({ type: 'added' } as never);
+      onLoaded?.(instance);
+    })
+    .catch((err) => {
+      console.warn(
+        `[tactile-minimal-v1] Не удалось загрузить ${filename}, оставлен процедурный меш:`,
+        err,
+      );
     });
-    modelCache.set(filename, promise);
-  }
-  return modelCache.get(filename)!;
-}
 
 /**
  * Клонирует загруженный GLB и применяет стиль M-мира (поликарбонат + ребра),
