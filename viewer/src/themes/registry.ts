@@ -22,7 +22,7 @@ export class ThemeManager {
   /** Явный выбор пользователя переживает переключение тем. */
   private profilePreferences = new Map<string, boolean>();
 
-  constructor(defaultThemeId = 'industrial-v1') {
+  constructor(defaultThemeId = 'tactile-minimal-v1') {
     this.registerTheme(industrialV1Theme);
     this.registerTheme(minimalV0Theme);
     this.registerTheme(tactileMinimalTheme);
