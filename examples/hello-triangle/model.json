@@ -267,10 +267,10 @@
     {
       "id": "m.pipeline",
       "world": "M",
-      "kind": "gpu:Pipeline",
+      "kind": "component",
       "name": "GraphicsPipeline",
       "description": "Схема стадий обработки графики.",
-      "tags": ["pipeline"]
+      "tags": ["pipeline", "gpu:Pipeline"]
     },
     {
       "id": "m.stage.vertex",
@@ -390,41 +390,46 @@
     {
       "id": "r.res.program",
       "world": "R",
-      "kind": "gpu:ShaderStage",
+      "kind": "resource",
       "name": "ShaderProgram#7",
       "description": "Слинкованная программа. GL id = 7.",
+	  "tags": ["gpu:ShaderStage"],
       "provenance": { "materializedFrom": "m.program", "source": "demo" }
     },
     {
       "id": "r.res.vao",
       "world": "R",
-      "kind": "gpu:VertexLayout",
+      "kind": "resource",
       "name": "VAO#1",
       "description": "Хранит конфигурацию атрибутов и привязки буферов.",
+	  "tags": ["gpu:VertexLayout"],
       "provenance": { "materializedFrom": "m.vao", "source": "demo" }
     },
     {
       "id": "r.res.vbo",
       "world": "R",
-      "kind": "gpu:Buffer",
+      "kind": "resource",
       "name": "VBO#3",
       "description": "9 float: три вершины по три координаты.",
+	  "tags": ["gpu:Buffer"],
       "provenance": { "materializedFrom": "m.vbo", "source": "demo" }
     },
     {
       "id": "r.res.ebo",
       "world": "R",
-      "kind": "gpu:Buffer",
+      "kind": "resource",
       "name": "EBO#4",
       "description": "Пустой индексный буфер. Присутствует, но не используется в draw.",
+	  "tags": ["gpu:Buffer", "idle"],
       "provenance": { "materializedFrom": "m.ebo", "source": "demo" }
     },
     {
       "id": "r.res.framebuffer",
       "world": "R",
-      "kind": "gpu:Framebuffer",
+      "kind": "resource",
       "name": "DefaultFramebuffer#0",
       "description": "Цель вывода по умолчанию (окно).",
+	  "tags": ["gpu:Framebuffer"],
       "provenance": { "materializedFrom": "m.framebuffer", "source": "demo" }
     },
     {
