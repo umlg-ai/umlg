@@ -25,14 +25,24 @@ export const KIND_TO_GLB: Record<string, string> = {
 
 // Карта переопределения по тегам / плагину graphics-gpu
 export const TAG_TO_GLB: Record<string, string> = {
+  // Короткие теги
   pipeline: 'vk_pipeline.glb',
-  'pipeline-stage': 'vk_shader_stage.glb',
   buffer: 'vk_buffer.glb',
   framebuffer: 'vk_framebuffer.glb',
   'vertex-layout': 'vk_vertex_layout.glb',
   descriptor: 'vk_descriptor.glb',
   'command-queue': 'vk_command_queue.glb',
   texture: 'vk_texture.glb',
+
+  // Профильные теги для плагина graphics-gpu (совместимые с validate.py)
+  'gpu:Pipeline': 'vk_pipeline.glb',
+  'gpu:ShaderStage': 'vk_shader_stage.glb',
+  'gpu:Buffer': 'vk_buffer.glb',
+  'gpu:Framebuffer': 'vk_framebuffer.glb',
+  'gpu:VertexLayout': 'vk_vertex_layout.glb',
+  'gpu:Descriptor': 'vk_descriptor.glb',
+  'gpu:CommandQueue': 'vk_command_queue.glb',
+  'gpu:Texture': 'vk_texture.glb',
 };
 
 function fetchGlb(filename: string): Promise<THREE.Group> {
