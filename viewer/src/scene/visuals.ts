@@ -690,7 +690,7 @@ export class ElementVisual {
 
     let labelHeight = 0.95;
 
-    if (options.themeManager) {
+        if (options.themeManager) {
       this.themeManager = options.themeManager;
       const { kind: resolvedKind, meta } = resolveEntityKind(element);
       this.resolvedKind = resolvedKind;
@@ -701,21 +701,29 @@ export class ElementVisual {
         meta: {
           ...meta,
           entityKind: element.kind,
-          materializedKind: previewKinds[0],
+          tags: element.tags,
+          materializedKind: previewKinds,
         },
       };
       const themeObj = options.themeManager.createEntity(resolvedKind, this.themeCtx);
-      themeObj.userData.elementId = element.id;
-      themeObj.traverse((child) => {
-        child.userData.elementId = element.id;
-        if (child instanceof THREE.Mesh || child instanceof THREE.LineSegments) {
-          child.castShadow = !mental;
-          child.receiveShadow = !mental;
-          if (child instanceof THREE.Mesh) {
-            this.meshes.push(child);
+
+      const applyElementMeta = (root: THREE.Object3D): void => {
+        root.userData.elementId = element.id;
+        root.traverse((child) => {
+          child.userData.elementId = element.id;
+          if (child instanceof THREE.Mesh || child instanceof THREE.LineSegments) {
+            child.castShadow = !mental;
+            child.receiveShadow = !mental;
+            if (child instanceof THREE.Mesh && !this.meshes.includes(child)) {
+              this.meshes.push(child);
+            }
           }
-        }
-      });
+        });
+      };
+
+      applyElementMeta(themeObj);
+      themeObj.addEventListener("added", () => applyElementMeta(themeObj));
+
       this.themeObject = themeObj;
       this.group.add(themeObj);
       labelHeight = 1.05;
