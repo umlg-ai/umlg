@@ -20,6 +20,7 @@ import {
   buildResourceMesh,
   buildStageMesh,
 } from './core-primitives';
+import { KIND_TO_GLB, TAG_TO_GLB, loadGlbIntoGroup } from './glb-loader';
 import { tactileGraphicsGpuPlugin } from './profiles/graphics-gpu';
 
 const materials = createTactileMaterials();
@@ -40,7 +41,7 @@ function coreKindToEntityKind(kind: string, world: WorldMode): string {
     case 'Store':
       return 'resource';
     case 'Process':
-      return world === 'R' ? 'process' : 'process';
+      return 'process';
     case 'Channel':
       return 'command';
     case 'Class':
@@ -56,12 +57,17 @@ function resolveVisualKind(kind: string, ctx: ThemeContext): string {
   return coreKindToEntityKind(kind, ctx.world);
 }
 
-/**
- * Создает 3D-представление базовой сущности Core UMLG.
- * Параметр `asPreview` используется для рендера полупрозрачной миниатюры
- * R-двойника внутри стеклянной витрины M-класса.
- */
-function buildCoreMesh(kind: string, asPreview = false): THREE.Group {
+/** Определяет имя GLB-файла по тегам элемента или его visualKind. */
+function resolveGlbFilename(visualKind: string, ctx?: ThemeContext): string | undefined {
+  const tags = Array.isArray(ctx?.meta?.tags) ? (ctx!.meta!.tags as string[]) : [];
+  for (const tag of tags) {
+    if (TAG_TO_GLB[tag]) return TAG_TO_GLB[tag];
+  }
+  return KIND_TO_GLB[visualKind];
+}
+
+/** Процедурный фолбэк, который отображается мгновенно, пока грузится .glb. */
+function buildProceduralFallback(kind: string, asPreview = false): THREE.Group {
   switch (kind) {
     case 'object':
       return buildObjectMesh(materials, asPreview);
@@ -87,6 +93,20 @@ function buildCoreMesh(kind: string, asPreview = false): THREE.Group {
       // Безопасный фолбэк для неизвестных видов (согласно инварианту №4 в AGENTS.md)
       return buildObjectMesh(materials, asPreview);
   }
+}
+
+/**
+ * Создает 3D-представление базовой сущности Core UMLG из GLB-модели
+ * с процедурным фолбэком на время асинхронной загрузки.
+ * Параметр `asPreview` используется для рендера полупрозрачной миниатюры
+ * R-двойника внутри стеклянной витрины M-класса.
+ */
+function buildCoreMesh(kind: string, asPreview = false, ctx?: ThemeContext): THREE.Group {
+  const fallback = buildProceduralFallback(kind, asPreview);
+  const glbFile = resolveGlbFilename(kind, ctx);
+
+  if (!glbFile) return fallback;
+  return loadGlbIntoGroup(glbFile, materials, fallback, asPreview);
 }
 
 function getTactileEnvironment(world: WorldMode): ThemeEnvironment {
@@ -127,11 +147,21 @@ export const tactileMinimalTheme: ThemeDefinition = {
       const target = ctx.meta?.materializedKind;
       const previewMesh =
         typeof target === 'string' && target.length > 0 ? buildCoreMesh(target, true) : undefined;
-      return buildClassMesh(materials, previewMesh);
+
+      const fallbackShowcase = buildClassMesh(materials);
+      const root = loadGlbIntoGroup('class.glb', materials, fallbackShowcase, false);
+
+      if (previewMesh) {
+        previewMesh.scale.setScalar(0.55);
+        previewMesh.position.y = 0.25;
+        root.add(previewMesh);
+      }
+
+      return root;
     }
 
-    // В M-мире сущности показываются полупрозрачным чертежом, в R-мире — solid.
-    return buildCoreMesh(visualKind, ctx.world === 'M');
+    // В M-мире сущности показываются полупрозрачным чертежом, в R-мире — solid GLB.
+    return buildCoreMesh(visualKind, ctx.world === 'M', ctx);
   },
 
   updateEntityObject(
