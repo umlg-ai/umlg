@@ -3,7 +3,7 @@
   "id": "hello-triangle",
   "name": "Hello Triangle",
   "description": "Первый вертикальный срез UMLG: как три вершины попадают на экран. M-мир описывает замысел, R-мир — воплощение в OpenGL.",
-  "viewpoints": ["structure", "resources", "pipeline", "state", "sequence"],
+  "viewpoints": ["structure", "resources", "pipeline", "state", "sequence", "runtime"],
   "worlds": [
     {
       "id": "M",
@@ -267,7 +267,7 @@
     {
       "id": "m.pipeline",
       "world": "M",
-      "kind": "component",
+      "kind": "gpu:Pipeline",
       "name": "GraphicsPipeline",
       "description": "Схема стадий обработки графики.",
       "tags": ["pipeline"]
@@ -390,7 +390,7 @@
     {
       "id": "r.res.program",
       "world": "R",
-      "kind": "resource",
+      "kind": "gpu:ShaderStage",
       "name": "ShaderProgram#7",
       "description": "Слинкованная программа. GL id = 7.",
       "provenance": { "materializedFrom": "m.program", "source": "demo" }
@@ -398,7 +398,7 @@
     {
       "id": "r.res.vao",
       "world": "R",
-      "kind": "resource",
+      "kind": "gpu:VertexLayout",
       "name": "VAO#1",
       "description": "Хранит конфигурацию атрибутов и привязки буферов.",
       "provenance": { "materializedFrom": "m.vao", "source": "demo" }
@@ -406,7 +406,7 @@
     {
       "id": "r.res.vbo",
       "world": "R",
-      "kind": "resource",
+      "kind": "gpu:Buffer",
       "name": "VBO#3",
       "description": "9 float: три вершины по три координаты.",
       "provenance": { "materializedFrom": "m.vbo", "source": "demo" }
@@ -414,7 +414,7 @@
     {
       "id": "r.res.ebo",
       "world": "R",
-      "kind": "resource",
+      "kind": "gpu:Buffer",
       "name": "EBO#4",
       "description": "Пустой индексный буфер. Присутствует, но не используется в draw.",
       "provenance": { "materializedFrom": "m.ebo", "source": "demo" }
@@ -422,7 +422,7 @@
     {
       "id": "r.res.framebuffer",
       "world": "R",
-      "kind": "resource",
+      "kind": "gpu:Framebuffer",
       "name": "DefaultFramebuffer#0",
       "description": "Цель вывода по умолчанию (окно).",
       "provenance": { "materializedFrom": "m.framebuffer", "source": "demo" }
