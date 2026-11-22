@@ -84,7 +84,7 @@ export class SceneManager {
     this.selectionLight.position.set(0, 1.0, 0);
     this.scene.add(this.selectionLight);
 
-    this.themeManager = new ThemeManager("industrial-v1");
+    this.themeManager = new ThemeManager("tactile-minimal-v1");
 
     this.envRenderer = new ThemeEnvironmentRenderer(this.renderer, this.scene, this.camera);
     this.envRenderer.applyEnvironment(
