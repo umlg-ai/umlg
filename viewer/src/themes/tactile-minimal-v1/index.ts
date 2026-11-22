@@ -144,9 +144,11 @@ export const tactileMinimalTheme: ThemeDefinition = {
     // Правило №5 (03-visual-grammar.md): внутри стеклянной витрины M-класса
     // стоит полупрозрачная миниатюра его R-двойника (если есть materializes).
     if (visualKind === 'class' && ctx.world === 'M') {
-      const target = ctx.meta?.materializedKind;
+      const rawTarget = ctx.meta?.materializedKind;
+      const target = Array.isArray(rawTarget) ? rawTarget[0] : rawTarget;
       const previewMesh =
         typeof target === 'string' && target.length > 0 ? buildCoreMesh(target, true) : undefined;
+
 
       const fallbackShowcase = buildClassMesh(materials);
       const root = loadGlbIntoGroup('class.glb', materials, fallbackShowcase, false);
