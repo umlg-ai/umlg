@@ -25,7 +25,6 @@ export const KIND_TO_GLB: Record<string, string> = {
 
 // Карта переопределения по тегам / плагину graphics-gpu
 export const TAG_TO_GLB: Record<string, string> = {
-  // Короткие теги
   pipeline: 'vk_pipeline.glb',
   buffer: 'vk_buffer.glb',
   framebuffer: 'vk_framebuffer.glb',
@@ -34,7 +33,6 @@ export const TAG_TO_GLB: Record<string, string> = {
   'command-queue': 'vk_command_queue.glb',
   texture: 'vk_texture.glb',
 
-  // Профильные теги для плагина graphics-gpu (совместимые с validate.py)
   'gpu:Pipeline': 'vk_pipeline.glb',
   'gpu:ShaderStage': 'vk_shader_stage.glb',
   'gpu:Buffer': 'vk_buffer.glb',
@@ -44,6 +42,58 @@ export const TAG_TO_GLB: Record<string, string> = {
   'gpu:CommandQueue': 'vk_command_queue.glb',
   'gpu:Texture': 'vk_texture.glb',
 };
+
+function fetchGlb(filename: string): Promise<THREE.Group> {
+  if (!modelCache.has(filename)) {
+    const url = new URL(`./tactile_glb/${filename}`, import.meta.url).href;
+    const promise = loader.loadAsync(url).then((gltf) => {
+      const root = gltf.scene;
+      root.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      return root;
+    });
+    modelCache.set(filename, promise);
+  }
+  return modelCache.get(filename)!;
+}
+
+function prepareGlbInstance(
+  source: THREE.Group,
+  mats: TactileMaterials,
+  isPreview: boolean,
+): THREE.Group {
+  const clone = source.clone(true);
+
+  if (isPreview) {
+    clone.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.material = mats.mWorldPolycarbonate;
+        child.castShadow = false;
+        child.receiveShadow = false;
+
+        const edges = new THREE.EdgesGeometry(child.geometry, 25);
+        const line = new THREE.LineSegments(edges, mats.mWorldWireframe);
+        child.add(line);
+      }
+    });
+  }
+
+  return clone;
+}
+
+export function loadGlbIntoGroup(
+  filename: string,
+  mats: TactileMaterials,
+  fallbackGroup: THREE.Group,
+  isPreview = false,
+  onLoaded?: (loadedModel: THREE.Group) => void,
+): THREE.Group {
+  const container = new THREE.Group();
+  container.add(fallbackGroup);
 
   fetchGlb(filename)
     .then((source) => {
@@ -65,59 +115,6 @@ export const TAG_TO_GLB: Record<string, string> = {
         `[tactile-minimal-v1] Не удалось загрузить ${filename}, оставлен процедурный меш:`,
         err,
       );
-    });
-
-/**
- * Клонирует загруженный GLB и применяет стиль M-мира (поликарбонат + ребра),
- * если модель рендерится как превью/чертеж.
- */
-function prepareGlbInstance(
-  source: THREE.Group,
-  mats: TactileMaterials,
-  isPreview: boolean,
-): THREE.Group {
-  const clone = source.clone(true);
-
-  if (isPreview) {
-    clone.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.material = mats.mWorldPolycarbonate;
-        child.castShadow = false;
-        child.receiveShadow = false;
-
-        // Добавляем графитовый контур чертежа как в процедурных примитивах
-        const edges = new THREE.EdgesGeometry(child.geometry, 25);
-        const line = new THREE.LineSegments(edges, mats.mWorldWireframe);
-        child.add(line);
-      }
-    });
-  }
-
-  return clone;
-}
-
-/**
- * Оборачивает процедурный фолбэк в контейнер и асинхронно заменяет его на GLB.
- */
-export function loadGlbIntoGroup(
-  filename: string,
-  mats: TactileMaterials,
-  fallbackGroup: THREE.Group,
-  isPreview = false,
-  onLoaded?: (loadedModel: THREE.Group) => void,
-): THREE.Group {
-  const container = new THREE.Group();
-  container.add(fallbackGroup);
-
-  fetchGlb(filename)
-    .then((source) => {
-      const instance = prepareGlbInstance(source, mats, isPreview);
-      container.remove(fallbackGroup);
-      container.add(instance);
-      onLoaded?.(instance);
-    })
-    .catch((err) => {
-      console.warn(`[tactile-minimal-v1] Не удалось загрузить ${filename}, оставлен процедурный меш:`, err);
     });
 
   return container;
